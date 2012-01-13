@@ -52,4 +52,7 @@ class DyngroupProfile(ComputerProfileI):
     def getForbiddenComputersUUID(self):
         pass
 
+    def areForbiddenComputers(self, computer_UUID):
+        return DyngroupDatabase().areForbiddenComputers(computer_UUID)
+
     # TODO need to be completed

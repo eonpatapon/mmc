@@ -67,7 +67,7 @@ class DyngroupDatabase(DatabaseHelper):
             self.is_activated = True
             version = self.version.select().execute().fetchone()[0]
             self.logger.debug("Dyngroup database connected (version:%s)" % version)
-            
+
         return self.is_activated
 
     def initMappers(self):
@@ -423,6 +423,17 @@ class DyngroupDatabase(DatabaseHelper):
         if pdata == None:
             return None
         return pdata.entity_uuid
+
+    def areForbiddenComputers(self, computers_UUID):
+        """
+        @returns: return all the computers from the computer_UUID list that are already in a profile
+        @rtype: list
+        """
+        session = create_session()
+        machines_in_profile = session.query(ProfilesResults, Machines.uuid).join(Machines).filter(Machines.id==ProfilesResults.FK_machines).filter(Machines.uuid.in_(computers_UUID)).all()
+        ret = map(lambda m:m.uuid, machines_in_profile)
+        session.close()
+        return ret
 
     ####################################
     ## SHARE ACCESS
@@ -794,4 +805,3 @@ class Users(object):
             'type':self.type
         }
 class UsersType(object): pass
-

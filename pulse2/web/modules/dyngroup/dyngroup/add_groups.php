@@ -151,7 +151,7 @@ if (isset($_POST["bdelmachine_x"])) {
             new NotifyWidgetFailure(_T("Group failed to modify", "dyngroup"));
         } else {
             if (count($names) > 0) {
-                new NotifyWidgetFailure(sprintf(_T("Profile failed to modify.<br/>Can't add %s", "dyngroup"), implode(', ', $names)));
+                new NotifyWidgetFailure(sprintf(_T("Profile failed to modify.<br/>Can't add %s (already in a profile).", "dyngroup"), implode(', ', $names)));
             } else {
                 new NotifyWidgetFailure(_T("Profile failed to modify", "dyngroup"));
             }
@@ -199,4 +199,3 @@ natcasesort($diff);
 drawGroupList($machines, $members, $listOfMembers, $visibility, $diff, $group->id, htmlspecialchars($name), $_POST['filter'], $type);
 
 ?>
-

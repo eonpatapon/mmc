@@ -251,7 +251,7 @@ class RpcProxy(RpcProxyI):
             for c in uuids:
                 computers.append(uuids[c]['uuid'])
                 uuid2key[uuids[c]['uuid']] = c
-            didnt_work = ComputerProfileManager().areForbiddebComputers(computers)
+            didnt_work = ComputerProfileManager().areForbiddenComputers(computers)
             if len(didnt_work) > 0:
                 logging.getLogger().debug("Can't add the following computers in that profile %s : %s"%(str(id), str(didnt_work)))
                 for i in didnt_work:
@@ -516,4 +516,3 @@ def unescape(search):
     if type(search) == str and search != '':
         return re.sub('&lt;', '<', re.sub('&gt;', '>', search))
     return search
-

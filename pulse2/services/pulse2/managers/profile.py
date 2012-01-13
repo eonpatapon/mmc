@@ -132,13 +132,13 @@ class ComputerProfileManager(Singleton):
                 ret.extend(r)
         return ret
 
-    def areForbiddebComputers(self, computer_UUID):
+    def areForbiddenComputers(self, computer_UUID):
         " ask to all profile managers "
         ret = []
         for mod in self.components:
             klass = self.components[mod]
-            if hasattr(klass, 'areForbiddebComputers'):
-                r = klass().areForbiddebComputers(computer_UUID)
+            if hasattr(klass, 'areForbiddenComputers'):
+                r = klass().areForbiddenComputers(computer_UUID)
                 ret.extend(r)
         return ret
 

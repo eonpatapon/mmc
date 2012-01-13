@@ -74,6 +74,3 @@ class ImagingProfile(ComputerProfileI):
 
     def getForbiddenComputersUUID(self, profile_UUID = None):
         return ImagingDatabase().getForbiddenComputersUUID(profile_UUID)
-
-    def areForbiddebComputers(self, computer_UUID):
-        return ImagingDatabase().areForbiddebComputers(computer_UUID)
