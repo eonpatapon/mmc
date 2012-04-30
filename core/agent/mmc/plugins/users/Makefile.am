@@ -1,9 +1,4 @@
-# -*- coding: utf-8; -*-
-#
-# (c) 2004-2007 Linbox / Free&ALter Soft, http://linbox.com
-# (c) 2007-2008 Mandriva, http://www.mandriva.com/
-#
-# $Id$
+# (c) 2012 Mandriva, http://www.mandriva.com
 #
 # This file is part of Mandriva Management Console (MMC).
 #
@@ -18,16 +13,12 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with MMC; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-"""
-Contains site global values
-"""
-bindir = '@bindir@'
-sbindir = '@sbindir@'
-datadir = '@datadir@'
-pkgdatadir = '@pkgdatadir@'
-prefix = '@prefix@'
-localstatedir = '@localstatedir@'
-mmcconfdir = '@sysconfdir@/mmc'
-sysconfdir = '@sysconfdir@'
+# along with MMC.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Author(s)
+#   Jean-Philippe Braun <jpbraun@mandriva.com>
+#
+
+plugincontribdir = $(datarootdir)/doc/python-mmc-users/contrib/
+dist_plugincontrib_DATA = contrib/mmc.schema contrib/mmc.ldif \
+				          contrib/rfc2307bis.schema contrib/rfc2307bis.ldif

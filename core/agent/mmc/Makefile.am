@@ -20,8 +20,11 @@
 # Author(s):
 #   Jean Parpaillon <jparpaillon@mandriva.com>
 #
+
+SUBDIRS = plugins
+
 pythonmodules = support plugins plugins.base plugins.ppolicy \
-	core core.audit client
+	core core.audit client plugins.users plugins.users.types
 
 all-local: site.py
 
@@ -36,6 +39,7 @@ CLEANFILES = site.py
 edit = sed \
         -e 's|@bindir[@]|$(bindir)|g' \
         -e 's|@sbindir[@]|$(sbindir)|g' \
+        -e 's|@datadir[@]|$(datadir)|g' \
         -e 's|@pkgdatadir[@]|$(pkgdatadir)|g' \
         -e 's|@prefix[@]|$(prefix)|g' \
         -e 's|@localstatedir[@]|$(localstatedir)|g' \
