@@ -28,6 +28,7 @@ import xmlrpclib
 import tempfile
 from sets import Set
 from ldif import LDIFParser
+from mmc.site import mmcconfdir
 from mmc.support import mmctools, ldapom
 from mmc.support.config import PluginConfig, PluginConfigFactory
 
@@ -37,7 +38,8 @@ class LdapConnection(ldapom.LdapConnection):
 
     def __init__(self, base = None):
         # Get LDAP connection configuration
-        self.ldap_config = PluginConfigFactory.new(LdapConfig, "ldap")
+        self.ldap_config = PluginConfigFactory.new(LdapConfig, "ldap", 
+                                os.path.join(mmcconfdir, "core", "ldap.ini"))
         if not base: base = self.ldap_config.base
         ldapom.LdapConnection.__init__(self, self.ldap_config.uri,
             base = base, login = self.ldap_config.login, 
@@ -160,7 +162,6 @@ class LdapConfigConnection(ldapom.LdapConnection):
 
     def __init__(self):
         # Get LDAP connection configuration
-        self.ldap_config = PluginConfigFactory.new(LdapConfig, "ldap")
         self._default_base = "cn=config";
         import ldap.sasl
         ldapom.LdapConnection.__init__(self, "ldapi:///",
