@@ -31,7 +31,7 @@ import logging
 import os.path
 from mmc.site import datadir 
 from mmc.core.version import scmRevision
-from mmc.core.ldapconn import LdapConnection, LdapConfigConnection, DNAlreadyExists
+from mmc.core.ldapconn import LdapConnection, LdapConfigConnection
 from mmc.core.audit import AuditFactory as AF
 from mmc.support import ldapom
 from mmc.support.config import PluginConfigFactory
@@ -57,7 +57,6 @@ def activate():
         return False
     # Check and load necessary schemas in LDAP
     try:
-        raise Exception()
         schemas = os.path.join(datadir, 'doc', 'python-mmc-users', 'contrib')
         config = LdapConfigConnection()
         if not config.getSchema('mmc'):
@@ -77,10 +76,8 @@ def activate():
     config = PluginConfigFactory.new(UsersConfig, "users")
     ous = [ config.users_ou, config.groups_ou ]
     for ou in ous:
-        try:
+        if not conn.getOU(ou):
             conn.addOU(ou)
-        except DNAlreadyExists:
-            pass
     # Create the default group
     groups = Groups()
     try:

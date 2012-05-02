@@ -80,9 +80,9 @@ class LdapConnection(ldapom.LdapConnection):
         """
 
         if not base: base = self._base
-        for ou in self.search(filter="ou=%s" % name,
-                              base=base, scope=ldap.SCOPE_ONELEVEL):
+        for ou in self.search(filter="ou=%s" % name, base=base):
             return ou
+        return None
 
     def getOUs(self, base = None):
         """
@@ -150,8 +150,8 @@ class LdapConnection(ldapom.LdapConnection):
 
         For more info on return type, reference to ldap.schema
         """
-        subschemasubentry_dn, schema = ldap.schema.urlfetch(self.config.ldapurl)
-        schemaAttrObj = schema.get_obj(ldap.schema.ObjectClass,schemaName)
+        subschemasubentry_dn, schema = ldap.schema.urlfetch(self.ldap_config.uri)
+        schemaAttrObj = schema.get_obj(ldap.schema.ObjectClass, schemaName)
         if not schemaAttrObj is None:
             return (Set(schemaAttrObj.must) | Set(schemaAttrObj.may))
         else:
