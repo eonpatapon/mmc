@@ -24,13 +24,16 @@
 Configuration classes for the audit module.
 """
 
-class AuditConfig:
+from mmc.support.config import PluginConfig
+
+class AuditConfig(PluginConfig):
 
     """
     Parse the audit system configuration file.
     """
 
-    def readAuditConf(self, section = "audit"):
+    def readConf(self):
+        section = "audit"
         if self.has_section(section):
             self.auditmethod = self.get(section, "method")
             if self.auditmethod == "database":

@@ -80,7 +80,8 @@ class LdapConnection(ldapom.LdapConnection):
         """
 
         if not base: base = self._base
-        for ou in self.search(filter="ou=%s" % name, base=base):
+        for ou in self.search(filter="ou=%s" % name, base=base,
+                              scope=ldap.SCOPE_SUBTREE):
             return ou
         return None
 
@@ -206,7 +207,7 @@ class LdapConfig(PluginConfig):
 
     def readConf(self):
         """
-        Read LDAP configuration from plugins/ldap.ini
+        Read LDAP configuration from core/ldap.ini
         """
 
         # Get LDAP server we are connected to

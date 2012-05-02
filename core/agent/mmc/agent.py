@@ -43,6 +43,10 @@ from mmc.support.mmctools import Singleton
 from mmc.core.version import scmRevision
 from mmc.core.audit import AuditFactory
 from mmc.core.log import ColoredFormatter
+from mmc.core.auth import AuthenticationManager
+from mmc.core.auth.baseldap import BaseLdapAuthenticator
+from mmc.core.auth.externalldap import ExternalLdapAuthenticator
+#from mmc.core.subscription import SubscriptionManager
 
 import imp
 import logging
@@ -66,7 +70,7 @@ Fault = xmlrpclib.Fault
 ctx = None
 VERSION = "3.0.3.92"
 
-class MmcServer(xmlrpc.XMLRPC,object):
+class MMCServer(xmlrpc.XMLRPC,object):
     """
     MMC Server implemented as a XML-RPC server.
 
@@ -244,8 +248,12 @@ class MmcServer(xmlrpc.XMLRPC,object):
 
     def _cbRender(self, result, request, functionPath = None, args = None):
         s = request.getSession()
+<<<<<<< HEAD
         auth_funcs = ["base.ldapAuth", "base.tokenAuthenticate", "base.authenticate"]
         if functionPath in auth_funcs and not isinstance(result, Fault):
+=======
+        if functionPath == "core.authenticate" and not isinstance(result, Fault):
+>>>>>>> Allow to run mmc-agent without the base module
             # if we are logging on and there was no error
             if result:
                 s = request.getSession()
@@ -517,6 +525,13 @@ class MMCApp(object):
         # Start audit system
         l = AuditFactory().log(u'MMC-AGENT', u'MMC_AGENT_SERVICE_START')
 
+        # Plug the subscription system
+        # SubscriptionManager()
+
+        # Register authenticators
+        AuthenticationManager().register("baseldap", BaseLdapAuthenticator)
+        AuthenticationManager().register("externalldap", ExternalLdapAuthenticator)
+
         # Ask PluginManager to load MMC plugins
         pm = PluginManager()
         code = pm.loadPlugins()
@@ -534,9 +549,9 @@ class MMCApp(object):
 
         return 0
 
-    def startService(self, mod):
+    def startService(self, plugins):
         # Starting XMLRPC server
-        r = MmcServer(mod, self.config)
+        r = MMCServer(plugins, self.config)
         if self.config.enablessl:
             sslContext = makeSSLContext(self.config.verifypeer, self.config.cacert,
                                         self.config.localcert)
@@ -786,7 +801,7 @@ class PluginManager(Singleton):
             return 0
         elif res is not None and not isinstance(res, int):
             self.plugins[name] = res
-            getattr(self.plugins["base"], "setModList")([name for name in self.plugins.keys()])
+            # getattr(self.plugins["base"], "setModList")([name for name in self.plugins.keys()])
         elif res == 4:
             return 4
         return res
@@ -803,6 +818,7 @@ class PluginManager(Singleton):
         sys.path.append("plugins")
         # self.modList = []
         plugins = self.getAvailablePlugins()
+<<<<<<< HEAD
         if not "base" in plugins:
             logger.error("Plugin 'base' is not available. Please install it.")
             return 1
@@ -810,6 +826,8 @@ class PluginManager(Singleton):
             # Set base plugin as the first plugin to load
             plugins.remove("base")
             plugins.insert(0, "base")
+=======
+>>>>>>> Allow to run mmc-agent without the base module
 
         # Put pulse2 plugins as the last to be imported, else we may get a mix
         # up with pulse2 module available in the main python path
@@ -845,7 +863,7 @@ class PluginManager(Singleton):
                         return 4
 
         # Set module list
-        getattr(self.plugins["base"], "setModList")([name for name in self.plugins.keys()])
+        # getattr(self.plugins["base"], "setModList")([name for name in self.plugins.keys()])
         return 0
 
     def stopPlugin(self, name):

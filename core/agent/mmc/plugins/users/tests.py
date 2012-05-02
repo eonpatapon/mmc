@@ -53,6 +53,14 @@ class TestUsersGroups(unittest.TestCase):
         self.users.removeOne('user')
         self.assertFalse(self.users.check_if_dn_exists(u._dn))
 
+    def testChangePassword(self):
+        u = self.users.addOne("user", "pasééù", {'givenName': 'Test user'})
+        self.assertTrue(u.check_password('pasééù'))
+        u = self.users.changePassword("user", "plop")
+        self.assertTrue(u.check_password('plop'))
+        u = self.users.changePassword("user", "pouetéé", "plop", True)
+        self.assertTrue(u.check_password('pouetéé'))
+
     def testAddDelGroup(self):
         g = self.groups.addOne("group", {'description': 'Test group', 
                                          'bad_attr': False })
@@ -64,7 +72,7 @@ class TestUsersGroups(unittest.TestCase):
         self.assertFalse(self.groups.check_if_dn_exists(g._dn))
 
     def testAddDelGroupUser(self):
-        self.groups.addOne("group", {'description': 'test group'})
+        self.groups.addOne("group")
         self.users.addOne("user", "pasééù", {'givenName': 'Test user'})
         g = self.groups.addUser("group", "user")
         self.assertEqual(list(g.objectClass), [u'groupOfNames', u'posixGroup'])
@@ -82,7 +90,7 @@ class TestUsersGroups(unittest.TestCase):
     def testRemoveUserFromAll(self):
         self.users.addOne("user1", "pasééù", {'givenName': 'Test user 1'})
         self.users.addOne("user2", "pasééù", {'givenName': 'Test user 2'})
-        self.groups.addOne("group1", {'description': 'Test group 1'})
+        self.groups.addOne("group1", {'description': 'Test group 1 héhé'})
         self.groups.addUser("group1", "user1")
         g = self.groups.addUser("group1", "user2")
         self.assertEqual(list(g.member), [u'uid=user1,ou=users_tests,ou=People,dc=mandriva,dc=com', u'uid=user2,ou=users_tests,ou=People,dc=mandriva,dc=com'])
@@ -97,9 +105,19 @@ class TestUsersGroups(unittest.TestCase):
         self.assertRaises(AttributeError, g.__getattr__, 'member')
         self.assertRaises(AttributeError, g.__getattr__, 'memberUid')
 
+    def testGetuserGroups(self):
+        self.users.addOne("user1", "pasééù", {'givenName': 'Test user 1'})
+        self.groups.addOne("group1", {'description': 'Test group 1'})
+        self.groups.addOne("group2", {'description': 'Test group 1'})
+        self.groups.addUser("group1", "user1")
+        self.groups.addUser("group2", "user1")
+        groups = self.users.getGroups("user1")
+        self.assertEqual(str(groups[0].cn), "group1")
+        self.assertEqual(str(groups[1].cn), "group2")
+
     def testAddRemovePosixAttributes(self):
         self.users.addOne("user1", "pasééù", {'givenName': 'Test user 1'})
-        self.users.addOne("user2", "pasééù", {'givenName': 'Test user 2'})
+        self.users.addOne("user2", "pasééù", {'givenName': 'Test user 2', 'sn': "Éàù"})
         g = self.groups.addOne("group1", {'description': 'Test group 1'})
         self.assertEqual(str(g.gidNumber), "10000")
         g = self.groups.addOne("group2", {'description': 'Test group 2'})
@@ -107,11 +125,13 @@ class TestUsersGroups(unittest.TestCase):
         u = self.posix_users.addAttributes("user1", "", {"primaryGroup": "group1"})
         self.assertEqual(str(u.uidNumber), "10000")
         self.assertEqual(str(u.gidNumber), "10000")
+        self.assertEqual(str(u.gecos), "Test user 1 user1")
         u = self.posix_users.addAttributes("user2", "", {"primaryGroup": "group1"})
         self.assertEqual(str(u.uidNumber), "10001")
         self.assertEqual(str(u.gidNumber), "10000")
+        self.assertEqual(str(u.gecos), "Test user 2 Eau")
         u = self.posix_users.removeAttributes("user2")
-        self.assertEqual(list(u.objectClass), [u'top', u'person', u'inetOrgPerson'])
+        self.assertEqual(list(u.objectClass), [u'top', u'person', u'inetOrgPerson', u'lmcUserObject'])
         self.assertRaises(AttributeError, u.__getattr__, "uidNumber")
 
     def tearDown(self):

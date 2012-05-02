@@ -26,9 +26,9 @@ import xmlrpclib
 from ConfigParser import NoOptionError
 
 from mmc.site import mmcconfdir
-from mmc.plugins.base.ldapconnect import LDAPConnectionConfig, LDAPConnection
-from mmc.plugins.base.auth import AuthenticatorConfig, AuthenticatorI, AuthenticationToken
-from mmc.plugins.base.provisioning import ProvisionerConfig, ProvisionerI
+from mmc.core.auth import AuthenticatorConfig, AuthenticatorI, AuthenticationToken
+from mmc.core.ldapconnect import LDAPConnectionConfig, LDAPConnection
+from mmc.core.provisioning import ProvisionerConfig, ProvisionerI
 
 INI = mmcconfdir + "/plugins/base.ini"
 

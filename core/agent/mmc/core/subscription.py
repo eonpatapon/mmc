@@ -27,6 +27,62 @@ Subscription configuration reader classes.
 
 import logging
 
+class SubscriptionManager(Singleton):
+    def init(self, config):
+        self.config = config
+        self.config.readSubscriptionConf()
+        self.logging = logging.getLogger()
+
+    def getInformations(self, dynamic = False):
+        if not self.config.is_subscribe_done:
+            return { 'is_subsscribed': False }
+        ret = {
+            'is_subsscribed':True,
+            'product_name':self.config.subs_product_name,
+            'vendor_name':self.config.subs_vendor_name,
+            'vendor_mail':self.config.subs_vendor_mail,
+            'customer_name':self.config.subs_customer_name,
+            'customer_mail':self.config.subs_customer_mail,
+            'comment':self.config.subs_comment,
+            'users':self.config.subs_users,
+            'computers':self.config.subs_computers,
+            'support_mail':self.config.subs_support_mail,
+            'support_phone':self.config.subs_support_phone,
+            'support_comment':self.config.subs_support_comment
+        }
+        if dynamic:
+            # we add the number of user and computers we have right now
+            ret['installed_users'], _ = searchUserAdvanced()
+            ret['too_much_users'] = (ret['installed_users'] > ret['users'])
+            if ComputerManager().isActivated():
+                ret['installed_computers'] = ComputerManager().getTotalComputerCount()
+            else:
+                ret['installed_computers'] = 0
+            ret['too_much_computers'] = (ret['installed_computers'] > ret['computers'])
+        return ret
+
+    def checkUsers(self):
+        if self.config.subs_users == 0:
+            return True
+        users = searchUserAdvanced()
+        if len(users) < self.config.subs_users:
+            return True
+        return False
+
+    def checkComputers(self):
+        if self.config.subs_computers == 0:
+            return True
+        if ComputerManager().getTotalComputerCount() < self.config.subs_computers:
+            return True
+        return False
+
+    def checkAll(self):
+        return self.checkUsers() and self.checkComputers()
+
+    def isCommunity(self):
+        return not self.config.is_subscribe_done
+
+
 class SubscriptionConfig:
     """
     Define values needed subscription.

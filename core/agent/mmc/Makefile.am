@@ -23,8 +23,8 @@
 
 SUBDIRS = plugins
 
-pythonmodules = support plugins plugins.base plugins.ppolicy \
-	core core.audit client plugins.users plugins.users.types
+pythonmodules = support plugins plugins.core plugins.users \
+	core core.audit core.auth client
 
 all-local: site.py
 

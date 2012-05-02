@@ -106,7 +106,7 @@ class AuthenticationManager(Singleton):
             except Exception, e:
                 self.logger.exception(e)
                 raise AuthenticationError
-            self.logger.debug("Authentication result: " + str(token.authenticated) + str(token.infos))
+            self.logger.debug("Authentication result: " + str(token.authenticated) + ", " + str(token.infos))
             if token.authenticated:
                 # the authentication succeeded
                 break

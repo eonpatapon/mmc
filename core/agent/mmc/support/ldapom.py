@@ -31,7 +31,7 @@
 import ldap
 import ldif
 
-LDAPOM_VERBOSE = False
+LDAPOM_VERBOSE = True
 
 def _encode_utf8(str):
     """
@@ -43,6 +43,14 @@ def _encode_utf8(str):
         return str.encode('utf-8')
     else:
         return str
+
+def _to_unicode(str):
+    """
+    Convert any string (ascii, utf-8, unicode...) to unicode
+    Convert numbers to string
+    """
+    if isinstance(str, basestring):
+        return unicode(_encode_utf8(str), "utf-8")
 
 # decorators
 def _retry_on_disconnect(func):
@@ -353,7 +361,7 @@ class LdapAttribute(object):
     ## Creates a new attribute with the given @p name and @p value. If @p add is @e False (default), the current value
     # is overwritten, else appended.
     def __init__(self, name, value, add=False):
-        self._name = unicode(name)
+        self._name = _to_unicode(name)
         self._replace_all = False
         self._changes = []
         if add:
@@ -365,9 +373,9 @@ class LdapAttribute(object):
                 self.append(value)
         else:
             if type(value) == list:
-                self._values = [unicode(val) for val in value]
+                self._values = [_to_unicode(v) for v in value]
             else:
-                self._values = [unicode(value)]
+                self._values = [_to_unicode(value)]
 
     ## @return Integer
     def __len__(self):
@@ -380,8 +388,8 @@ class LdapAttribute(object):
     def __str__(self):
         # if there's only one item, return it directly
         if len(self._values) == 1:
-            return self._values[0].encode("utf-8")
-        return [val.encode("utf-8") for val in self._values]
+            return _encode_utf8(self._values[0])
+        return [_encode_utf8(v.encode) for v in self._values]
 
     ## @return String
     def __unicode__(self):
@@ -406,9 +414,9 @@ class LdapAttribute(object):
         """
         add an attribute
         """
-        if not value in self._values:
-            self._values.append(unicode(value))
-            self._changes.append((ldap.MOD_ADD, self._name, unicode(value)))
+        if not _to_unicode(value) in self._values:
+            self._values.append(_to_unicode(value))
+            self._changes.append((ldap.MOD_ADD, self._name, _to_unicode(value)))
 
     ## @param value String the to-be-removed value
     ## @return None
@@ -416,9 +424,9 @@ class LdapAttribute(object):
         """
         remove an attribute
         """
-        if str(value) in self._values:
-            self._values.remove(unicode(value))
-            self._changes.append((ldap.MOD_DELETE, self._name, unicode(value)))
+        if _to_unicode(value) in self._values:
+            self._values.remove(_to_unicode(value))
+            self._changes.append((ldap.MOD_DELETE, self._name, _to_unicode(value)))
 
     ## Membership test operator (<em>in</em> and <em>not in</em>), tests if the attribute contains the @p item.
     ## @return Boolean
@@ -433,7 +441,7 @@ class LdapAttribute(object):
     # @return None
     def __setitem__(self, key, value):
         self._replace_all = True
-        self._values[key] = unicode(value)
+        self._values[key] = _to_unicode(value)
 
     ## Deletes the value identified by its @p key
     # @return None
@@ -452,9 +460,9 @@ class LdapAttribute(object):
         Sets single value, discards all existing ones
         """
         if type(value) == list:
-            self._values = [unicode(x) for x in value]
+            self._values = [_to_unicode(v) for v in value]
         else:
-            self._values = [unicode(value)]
+            self._values = [_to_unicode(value)]
         self._replace_all = True
 
     ## @return Array
@@ -495,7 +503,7 @@ class LdapNode(object):
         Create lazy Node Object from dn
         """
         self._conn = conn
-        self._dn = unicode(_encode_utf8(dn), 'utf-8')
+        self._dn = _to_unicode(dn)
         self._valid = True
         self._to_delete = []
         self._new = new
@@ -563,7 +571,7 @@ class LdapNode(object):
 
     ## @returns the string DN of the node.
     def __str__(self):
-        return self._dn.encode("utf-8")
+        return _encode_utf8(self._dn)
 
     ## @returns the String representation of the object.
     def __repr__(self):

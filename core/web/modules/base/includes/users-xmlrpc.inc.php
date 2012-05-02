@@ -40,7 +40,7 @@ function auth_user ($login, $pass)
     $param[] = $login;
     $param[] = prepare_string($pass);
 
-    $ret = xmlCall("base.ldapAuth",$param);
+    $ret = xmlCall("core.authenticate",$param);
     if ($ret != "1") {
         if (!isXMLRPCError()) {
             $error = _("Invalid login");

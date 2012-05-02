@@ -25,8 +25,12 @@ Factory used to interact with the Audit module
 (read/write audit logs)
 """
 
+import os
+from mmc.site import mmcconfdir
 from mmc.support.mmctools import Singleton
+from mmc.support.config import PluginConfigFactory
 from mmc.core.audit.writernull import AuditWriterNull
+from mmc.core.audit.config import AuditConfig
 
 class AuditFactory(Singleton):
 
@@ -34,11 +38,10 @@ class AuditFactory(Singleton):
         Singleton.__init__(self)
         if not hasattr(self, 'logaction'):
             if config == None:
-                from mmc.plugins.base import BasePluginConfig
-                from mmc.support.config import PluginConfigFactory
                 try:
                     # Read the configuration
-                    self.make(PluginConfigFactory.new(BasePluginConfig, 'base'), init)
+                    self.make(PluginConfigFactory.new(AuditConfig, 'audit'),
+                                os.path.join(mmcconfdir, "core", "audit.ini"))
                 except IOError:
                     # Fallback on default configuration
                     self.make(None, init)

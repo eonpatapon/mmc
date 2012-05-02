@@ -35,6 +35,7 @@ from mmc.core.ldapconn import LdapConnection, LdapConfigConnection
 from mmc.core.audit import AuditFactory as AF
 from mmc.support import ldapom
 from mmc.support.config import PluginConfigFactory
+from mmc.support.mmctools import delete_diacritics
 from mmc.plugins.users.audit import AA, AT, PLUGIN_NAME
 from mmc.plugins.users.config import UsersConfig
 
@@ -96,7 +97,8 @@ class Users(LdapConnection):
 
     classes = ['top',
                'person',
-               'inetOrgPerson']
+               'inetOrgPerson',
+               'lmcUserObject']
     attrs = ['uid',
              'userPassword',
              'jpegPhoto',
@@ -109,13 +111,14 @@ class Users(LdapConnection):
              'mobile', # Mobile phone
              'facsimileTelephoneNumber', # Fax
              'homePhone',
-             'homePostalAddress']
+             'homePostalAddress',
+             'lmcACL']
 
     def __init__(self):
         LdapConnection.__init__(self)
         self.config = PluginConfigFactory.new(UsersConfig, "users")
         # Limit queries to the users OU
-        self.changeBase(self.getOU(self.config.users_ou)._dn)
+        self.changeBase(str(self.getOU(self.config.users_ou)))
 
     def getOne(self, uid):
         """
@@ -170,34 +173,46 @@ class Users(LdapConnection):
             user.save()
             r.commit()
             # Set the password
-            self.changePassword(user._dn, password)
+            self.changePassword(str(user.uid), password)
             # Run hooks
             self.runHook("users.adduser", uid, password)
 
             return user
 
-    def changePassword(self, dn, password, old_password = None, bind = False):
+    def getGroups(self, uid):
+        """
+        Get the user's groups
+        """
+        user = self.getOne(uid)
+        groups = []
+        for group in Groups().getAll():
+            if 'member' in group and str(user) in group.member:
+                groups.append(group)
+
+        return groups
+
+    def changePassword(self, uid, password, old_password = None, bind = False):
         """
         Change the user password using LDAP Password Modify Extended Operation
         """
-
-        r = AF().log(PLUGIN_NAME, AA.USERS_MOD_USER_PASSWORD, [(dn, AT.USER)])
+        user = self.getOne(uid)
+        r = AF().log(PLUGIN_NAME, AA.USERS_MOD_USER_PASSWORD, [(str(user.uid), AT.USER)])
 
         # Bind as the user to change the password
         if bind:
             conn = ldapom.LdapConnection(self._uri,
                                          base = self._base,
-                                         login = dn,
-                                         password = password)
-        else:
-            conn = self
+                                         login = str(user),
+                                         password = old_password)
+            user = conn.get_ldap_node(str(user))
 
-        user = conn.get_ldap_node(dn)
         user.set_password(password)
 
         r.commit()
 
-        self.runHook("users.changeuserpassword", user.uid, password)
+        self.runHook("users.changeuserpassword", str(user.uid), password)
+
+        return user
 
     def changeAttributes(self, uid, attrs, log = True):
         """
@@ -283,10 +298,22 @@ class PosixUsers(Users):
                                                           True)
             if not 'loginShell' in attrs:
                 attrs['loginShell'] = self.config.login_shell
+            
             attrs['uidNumber'] = self._getUID()
+            
             if not 'primaryGroup' in attrs:
                 attrs['primaryGroup'] = self.config.default_group
             attrs['gidNumber'] = self._getGID(attrs['primaryGroup'])
+
+            if not 'gecos' in attrs:
+                gecos = ""
+                if 'givenName' in user:
+                    gecos = str(user.givenName) + " "
+                if 'sn' in user:
+                    gecos += str(user.sn)
+                attrs['gecos'] = delete_diacritics(gecos)
+            else:
+                attrs['gecos'] = delete_diacritics(attrs['gecos'])
 
             # Add objectClasses
             user.objectClass.append('posixAccount')
@@ -322,10 +349,10 @@ class PosixUsers(Users):
             if 'uidNumber' in user and int(str(user.uidNumber)) > uidNumber:
                     uidNumber = int(str(user.uidNumber))
         uidNumber += 1
-        return uidNumber
+        return str(uidNumber)
 
     def _getGID(self, group):
-        return int(str(Groups().getOne(group).gidNumber))
+        return str(Groups().getOne(group).gidNumber)
 
     def _getHomeDir(self, uid, home_dir = None, check_exists = True):
         """
@@ -372,7 +399,7 @@ class Groups(LdapConnection):
     def __init__(self):
         LdapConnection.__init__(self)
         self.config = PluginConfigFactory.new(UsersConfig, "users")
-        self.changeBase(self.getOU(self.config.groups_ou)._dn)
+        self.changeBase(str(self.getOU(self.config.groups_ou)))
 
     def getOne(self, cn):
         """
@@ -425,7 +452,7 @@ class Groups(LdapConnection):
             if 'gidNumber' in group and int(str(group.gidNumber)) > gidNumber:
                     gidNumber = int(str(group.gidNumber))
         gidNumber += 1
-        return gidNumber
+        return str(gidNumber)
 
     def addUser(self, cn, uid):
         """
@@ -442,22 +469,27 @@ class Groups(LdapConnection):
         if not 'groupOfNames' in group.objectClass:
             # We need to delete the group and recreate it
             # for changing the structural ObjectClass to groupOfNames
-            dn = group._dn
-            cn = group.cn
-            description = group.description
-            gidNumber = group.gidNumber
+            dn = str(group)
+            cn = str(group.cn)
+            if 'description' in group:
+                description = str(group.description)
+            else:
+                description = False
+            gidNumber = str(group.gidNumber)
             group.delete()
             group = self.new_ldap_node(dn) 
             group.objectClass = ['groupOfNames', 'posixGroup']
             group.cn = cn
-            group.description = description
+            if description:
+                group.description = description
             group.gidNumber = gidNumber
-            group.member = user._dn
-            group.memberUid = user.uid
+            group.member = str(user)
+            group.memberUid = str(user.uid)
+
             group.save()
         else:
-            group.member.append(user._dn)
-            group.memberUid.append(user.uid)
+            group.member.append(str(user))
+            group.memberUid.append(str(user.uid))
             group.save()
 
         r.commit()
@@ -475,20 +507,24 @@ class Groups(LdapConnection):
             r = AF().log(PLUGIN_NAME,
                          AA.USERS_DEL_USER_FROM_GROUP,
                          [(str(group.cn), AT.GROUP), (str(user.uid), AT.USER)])
-            group.member.remove(user._dn)
-            group.memberUid.remove(user.uid)
+            group.member.remove(str(user))
+            group.memberUid.remove(str(user.uid))
             # No more members switch back to namedObject
             # structural objectClass
             if len(group.member) == 0:
-                dn = group._dn
-                cn = group.cn
-                description = group.description
-                gidNumber = group.gidNumber
+                dn = str(group)
+                cn = str(group.cn)
+                if 'description' in group:
+                    description = str(group.description)
+                else:
+                    description = False
+                gidNumber = str(group.gidNumber)
                 group.delete()
                 group = self.new_ldap_node(dn) 
                 group.objectClass = ['namedObject', 'posixGroup']
                 group.cn = cn
-                group.description = description
+                if description:
+                    group.description = description
                 group.gidNumber = gidNumber
             # Save the group
             group.save()
@@ -571,8 +607,10 @@ def getUsers(search = "*", base = None):
     return Users().getAll(search, base)
 def addUser(uid, password, attrs = {}, base = None):
     return Users().addOne(uid, password, attrs, base)
-def changeUserPassword(dn, password, old_password = None, bind = False):
-    return Users().changePassword(dn, password, old_password, bind)
+def changeUserPassword(uid, password, old_password = None, bind = False):
+    return Users().changePassword(uid, password, old_password, bind)
+def getUserGroups(uid):
+    return Users().getGroups(uid)
 def changeUserAttribute(uid, attr, value, log = True):
     return Users().changeAttribute(uid, attr, value, log)
 def changeUserAttributes(uid, attrs, log = True):
@@ -599,6 +637,8 @@ def changeGroupAttribute(cn, attr, value, log = True):
     return Groups().changeAttribute(cn, attr, value, log)
 def changeGroupsAttributes(cn, attrs, log = True):
     return Groups().changeAttributes(cn, attrs, log)
+def addGroupUser(cn, uid):
+    return Groups().addUser(cn, uid)
 def removeGroupUser(cn, uid):
     return Groups().removeUser(cn, uid)
 def removeGroupsUser(uid):

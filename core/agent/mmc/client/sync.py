@@ -130,7 +130,7 @@ class MMCBaseTransport(object):
         # Creating cookie jar
         cresponse = CookieResponse(headers)
         crequest = CookieRequest('https://' + host + '/')
-        if '<methodName>base.ldapAuth</methodName>' in request_body:
+        if '<methodName>core.authenticate</methodName>' in request_body:
             cj = LWPCookieJar()
             cj.extract_cookies(cresponse, crequest)
             if len(cj):
