@@ -1,5 +1,9 @@
 <?php
 
+function getAcl($uid) {
+  return xmlCall("core.getUserAcl",array($uid));
+}
+
 function auth_user ($login, $pass)
 {
     global $conf;

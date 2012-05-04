@@ -41,3 +41,6 @@ class RpcProxy(RpcProxyI):
         #    record = AF().log(PLUGIN_NAME, AA.BASE_AUTH_USER, [(userdn, AT.USER)])
         #    record.commit()
         return ret
+
+def getUserAcl(uid):
+    return ""

@@ -24,47 +24,6 @@
 ?>
 <?
 
-/**
- *  convert an aclString to an aclArray
- */
-function createAclArray($aclString) {
-    $acl = "";
-    $aclattr = "";
-    if (strpos($aclString, '/') === False) {
-        $acl = $aclString;
-    } else {
-        list($acl, $aclattr) = split('/', $aclString);
-    }
-
-    $retacl = array();
-    $retacltab = array();
-    $retaclattr = array();
-
-    /* get pages ACL */
-    $arrayMod = split(':', $acl);
-    foreach($arrayMod as $items) {
-        if (substr_count($items, "#") == 2) {
-            list($mod, $submod, $action) = split('#', $items);
-            $retacl[$mod][$submod][$action]["right"] = "on";
-        } else if (substr_count($items, "#") == 3) {
-            list($mod, $submod, $action, $tab) = split('#', $items);
-            $retacltab[$mod][$submod][$action][$tab]["right"] = "on";
-        }
-    }
-
-    /* get attribute ACL */
-    if (strlen($aclattr)) {
-        $arrayAttr=split(':',$aclattr);
-        foreach($arrayAttr as $items) {
-            if (!empty($items)) {
-                list($attrName,$value) = split('=',$items);
-                $retaclattr[$attrName]=$value;
-            }
-        }
-    }
-    
-    return array($retacl, $retacltab, $retaclattr);
-}
 
 /**
  * convert an acl array to an acl String

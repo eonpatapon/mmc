@@ -169,10 +169,6 @@ function maxGID() {
   return xmlCall("base.maxGID",null);
 }
 
-function getAcl($uid) {
-  return xmlCall("base.getUserAcl",array($uid));
-}
-
 function setAcl($uid,$aclString) {
     return xmlCall("base.setUserAcl",array($uid,$aclString));
 }
