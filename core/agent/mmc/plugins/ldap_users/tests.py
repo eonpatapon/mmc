@@ -23,8 +23,8 @@
 
 import unittest
 
-from mmc.plugins.users import Users, PosixUsers, UserDoesNotExists, \
-                              Groups
+from mmc.plugins.ldap_users import Users, PosixUsers, UserDoesNotExists, \
+                                   Groups
 
 class TestUsersGroups(unittest.TestCase):
 

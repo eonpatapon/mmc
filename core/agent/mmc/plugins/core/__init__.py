@@ -5,6 +5,7 @@ from mmc.core.version import scmRevision
 from mmc.core.audit import AuditFactory as AF
 from mmc.core.subscriptions import SubscriptionManager
 from mmc.core.auth import AuthenticationManager
+from mmc.core.auth.pam import PAMAuthenticator
 from mmc.core.auth.baseldap import BaseLdapAuthenticator
 from mmc.core.auth.externalldap import ExternalLdapAuthenticator
 from mmc.core.provisioning import ProvisioningManager
@@ -23,12 +24,11 @@ def getApiVersion(): return APIVERSION
 def getRevision(): return REVISION
 
 def activate():
-    return True
-
-def activate_2():
-    UserManager().register("dummy", DummyUser)
+    UserManager().register("Dummy user backend", DummyUser)
+    UserManager().select("Dummy user backend")
 
     # Register authenticators
+    AuthenticationManager().register("pam", PAMAuthenticator)
     AuthenticationManager().register("baseldap", BaseLdapAuthenticator)
     AuthenticationManager().register("externalldap", ExternalLdapAuthenticator)
 
@@ -123,20 +123,41 @@ class RpcProxy(RpcProxyI):
 
 
 class DummyUser:
+    """
+    A user backend that does nothing
+    """
+
+    def canAddOne(self, ctx):
+        return False
+
+    def canChangePassword(self, ctx):
+        return False
+
+    def canChangeAttributes(self, ctx, uid):
+        return False
+
+    def canRemoveOne(self, ctx, uid):
+        return False
+
+    def canAddBase(self, ctx):
+        return False
+
+    def canHaveGroups(self, ctx):
+        return False
 
     def getOne(self, ctx, uid):
         return uid
 
-    def getAll(self, ctx, search, base):
-        return 0
-
     def getACL(self, ctx, uid):
         return ""
+
+    def getAll(self, ctx, search, base):
+        return 0
 
 
 class ContextMaker(ContextMakerI):
     """
-    Create security context for the base plugin.
+    Create security context for the core plugin.
     """
 
     def getContext(self):

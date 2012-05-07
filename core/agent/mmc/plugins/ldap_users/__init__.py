@@ -37,8 +37,8 @@ from mmc.core.users import UserManager, UserI
 from mmc.support import ldapom
 from mmc.support.config import PluginConfigFactory
 from mmc.support.mmctools import delete_diacritics
-from mmc.plugins.users.audit import AA, AT, PLUGIN_NAME
-from mmc.plugins.users.config import UsersConfig
+from mmc.plugins.ldap_users.audit import AA, AT, PLUGIN_NAME
+from mmc.plugins.ldap_users.config import UsersConfig
 
 VERSION = "3.0.3.2"
 APIVERSION = "0:0:0"
@@ -91,8 +91,9 @@ def activate():
     return True
 
 def activate_2():
-    UserManager().register("ldap", Users)
-    UserManager().select("ldap")
+    config = PluginConfigFactory.new(UsersConfig, "users")
+    UserManager().register(config.backend_name, Users)
+    UserManager().select(config.backend_name)
 
     return True
 

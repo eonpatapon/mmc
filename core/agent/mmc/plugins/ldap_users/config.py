@@ -28,7 +28,9 @@ class UsersConfig(PluginConfig):
     """
     Define values needed by the users plugin.
     """
-   
+
+    # Backend name
+    backend_name = 'LDAP users'
     # Base
     users_ou = 'People'
     groups_ou = 'Group'
@@ -46,6 +48,10 @@ class UsersConfig(PluginConfig):
         Read configuration from plugins/users.ini
         """
 
+        try:
+            self.backend_name = self.get("main", "backendName")
+        except:
+            pass
         try:
             self.users_ou = self.get("main", "usersOU")
         except:

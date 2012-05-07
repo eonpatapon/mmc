@@ -23,7 +23,7 @@
 
 SUBDIRS = plugins
 
-pythonmodules = support plugins plugins.core plugins.users \
+pythonmodules = support plugins plugins.core plugins.ldap_users \
 	core core.audit core.auth client
 
 all-local: site.py

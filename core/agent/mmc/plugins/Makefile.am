@@ -19,4 +19,4 @@
 #   Jean-Philippe Braun <jpbraun@mandriva.com>
 #
 
-SUBDIRS = users
+SUBDIRS = ldap_users

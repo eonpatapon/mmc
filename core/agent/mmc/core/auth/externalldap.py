@@ -22,15 +22,16 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 import ldap
+import logging
 import xmlrpclib
 from ConfigParser import NoOptionError
 
-from mmc.site import mmcconfdir
-from mmc.core.auth import AuthenticatorConfig, AuthenticatorI, AuthenticationToken
+from mmc.core.auth import AuthenticatorConfig, AuthenticatorI, \
+                          AuthenticationToken, AUTH_CONFIG
 from mmc.core.ldapconnect import LDAPConnectionConfig, LDAPConnection
 from mmc.core.provisioning import ProvisionerConfig, ProvisionerI
 
-INI = mmcconfdir + "/plugins/base.ini"
+log = logging.getLogger()
 
 class ExternalLdapAuthenticatorConfig(AuthenticatorConfig, LDAPConnectionConfig):
     """
@@ -39,21 +40,26 @@ class ExternalLdapAuthenticatorConfig(AuthenticatorConfig, LDAPConnectionConfig)
 
     def readConf(self):
         AuthenticatorConfig.readConf(self)
-        for option in ["suffix", "attr"]:
-            self.__dict__[option] = self.get(self.section, option)
-        try:
-            self.__dict__["bindname"] = self.getdn(self.section, "bindname")
-        except NoOptionError:
-            pass
-        try:
-            self.__dict__["bindpasswd"] = self.getpassword(self.section, "bindpasswd")
-        except NoOptionError:
-            pass
-        self.ldapurls = self.get(self.section, "ldapurl").split()
-        try:
-            self.filter = self.get(self.section, "filter")
-        except NoOptionError:
-            pass
+        if self.enabled:
+            for option in ["suffix", "attr"]:
+                try:
+                    self.__dict__[option] = self.get(self.section, option)
+                except NoOptionError:
+                    log.error("suffix or attr options not set. Authenticator disabled.")
+                    self.enabled = False
+            try:
+                self.__dict__["bindname"] = self.getdn(self.section, "bindname")
+            except NoOptionError:
+                pass
+            try:
+                self.__dict__["bindpasswd"] = self.getpassword(self.section, "bindpasswd")
+            except NoOptionError:
+                pass
+            self.ldapurls = self.get(self.section, "ldapurl").split()
+            try:
+                self.filter = self.get(self.section, "filter")
+            except NoOptionError:
+                pass
 
     def setDefault(self):
         AuthenticatorConfig.setDefault(self)
@@ -66,7 +72,7 @@ class ExternalLdapAuthenticator(AuthenticatorI):
     This authenticator connects to a LDAP server to authenticate users.
     """
 
-    def __init__(self, conffile = INI, name = "externalldap"):
+    def __init__(self, conffile = AUTH_CONFIG, name = "externalldap"):
         AuthenticatorI.__init__(self, conffile, name, ExternalLdapAuthenticatorConfig)
 
     def validate(self):
@@ -182,7 +188,7 @@ class ExternalLdapProvisioner(ProvisionerI):
     by ExternalLdapAuthenticator objects.
     """
 
-    def __init__(self, conffile = INI, name = "externalldap"):
+    def __init__(self, conffile = AUTH_CONFIG, name = "externalldap"):
         ProvisionerI.__init__(self, conffile, name, ExternalLdapProvisionerConfig)
 
     def doProvisioning(self, authtoken):

@@ -21,11 +21,16 @@
 # along with MMC; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+import os.path
 import logging
 from ConfigParser import ConfigParser, NoSectionError, NoOptionError
+from mmc.site import mmcconfdir
 from mmc.support.mmctools import Singleton
 from mmc.support.config import MMCConfigParser
 
+AUTH_CONFIG = os.path.join(mmcconfdir, "core", "auth.ini")
+
+log = logging.getLogger()
 
 class AuthenticationManager(Singleton):
     """
@@ -37,14 +42,13 @@ class AuthenticationManager(Singleton):
 
     def __init__(self):
         Singleton.__init__(self)
-        self.logger = logging.getLogger()
 
     def register(self, name, klass):
         """
         @param name: the name of the authenticator
         @param klass: the class name of the authenticator
         """
-        self.logger.debug("Registering authenticator %s / %s" % (name, str(klass)))
+        log.debug("Registering authenticator %s / %s" % (name, str(klass)))
         self.components.append((name, klass))
 
     def validate(self):
@@ -57,18 +61,18 @@ class AuthenticationManager(Singleton):
                 mandatory = instance.config.mandatory
                 valid = instance.validate()
             except Exception, e:
-                self.logger.exception(e)
+                log.exception(e)
                 valid = False
             if valid:
-                self.logger.info("Authenticator %s successfully validated" % name)
+                log.info("Authenticator %s successfully validated" % name)
                 tmp.append((name, klass))
             else:
-                self.logger.info("Authenticator %s failed to validate" % name)
+                log.info("Authenticator %s failed to validate" % name)
                 if mandatory:
-                    self.logger.error("Authenticator %s is configured as mandatory, exiting" % name)
+                    log.error("Authenticator %s is configured as mandatory, exiting" % name)
                     ret = False
                 else:
-                    self.logger.info("Authenticator %s is not configured as mandatory, so going on" % name)
+                    log.info("Authenticator %s is not configured as mandatory, so going on" % name)
         self.components = tmp
         return ret
 
@@ -78,7 +82,7 @@ class AuthenticationManager(Singleton):
             for name in names.split():
                 for n, k in self.components:
                     if n == name:
-                        self.logger.info("Selecting authenticator %s / %s" % (n, str(k)))
+                        log.info("Selecting authenticator %s / %s" % (n, str(k)))
                         tmp.append((n, k))
         self.components = tmp
 
@@ -93,23 +97,26 @@ class AuthenticationManager(Singleton):
         token = AuthenticationToken()
         for name, klass in self.components:
             instance = klass()
-            self.logger.debug("Try to authenticate user with %s / %s" % (name, str(klass)))
-            if instance.config.authonly:
-                if user.lower() not in instance.config.authonly:
-                    self.logger.debug("User %s is not in the authonly list of this authenticator, so we skip it" % user)
-                    continue
-            if instance.config.exclude:
-                if user.lower() in instance.config.exclude:
-                    self.logger.debug("User %s is in the exclude list of this authenticator, so we skip it" % user)
-            try:
-                token = instance.authenticate(user, password)
-            except Exception, e:
-                self.logger.exception(e)
-                raise AuthenticationError
-            self.logger.debug("Authentication result: " + str(token.authenticated) + ", " + str(token.infos))
-            if token.authenticated:
-                # the authentication succeeded
-                break
+            if instance.config.enabled:
+                log.debug("Try to authenticate user with %s / %s" % (name, str(klass)))
+                if instance.config.authonly:
+                    if user.lower() not in instance.config.authonly:
+                        log.debug("User %s is not in the authonly list of this authenticator, so we skip it" % user)
+                        continue
+                if instance.config.exclude:
+                    if user.lower() in instance.config.exclude:
+                        log.debug("User %s is in the exclude list of this authenticator, so we skip it" % user)
+                try:
+                    token = instance.authenticate(user, password)
+                except Exception, e:
+                    log.exception(e)
+                    raise AuthenticationError
+                log.debug("Authentication result: " + str(token.authenticated) + ", " + str(token.infos))
+                if token.authenticated:
+                    # the authentication succeeded
+                    break
+            else:
+                log.debug("Authenticator %s disabled, so we skip it" % name)
         token.session = session
         return token
 
@@ -130,6 +137,7 @@ class AuthenticatorConfig(MMCConfigParser):
         fp.close()
 
     def readConf(self):
+        self.enabled = self.getboolean(self.section, "enabled")
         for option in ["authonly", "exclude"]:
             try:
                 self.__dict__[option] = self.get(self.section, option).lower().split()
@@ -164,7 +172,6 @@ class AuthenticatorI:
         @param conffile: authenticator configuration file
         @param name: the authenticator name
         """
-        self.logger = logging.getLogger()
         self.config = klass(conffile, "authentication_" + name)
 
     def authenticate(self, user, password):
