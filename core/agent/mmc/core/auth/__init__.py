@@ -1,9 +1,7 @@
 # -*- coding: utf-8; -*-
 #
 # (c) 2004-2007 Linbox / Free&ALter Soft, http://linbox.com
-# (c) 2007-2008 Mandriva, http://www.mandriva.com/
-#
-# $Id$
+# (c) 2007-2012 Mandriva, http://www.mandriva.com/
 #
 # This file is part of Mandriva Management Console (MMC).
 #
@@ -137,8 +135,7 @@ class AuthenticatorConfig(MMCConfigParser):
         fp.close()
 
     def readConf(self):
-        self.enabled = self.getboolean(self.section, "enabled")
-        for option in ["authonly", "exclude"]:
+        for option in ["enabled", "authonly", "exclude"]:
             try:
                 self.__dict__[option] = self.get(self.section, option).lower().split()
             except NoSectionError:
@@ -154,6 +151,7 @@ class AuthenticatorConfig(MMCConfigParser):
                 pass
 
     def setDefault(self):
+        self.enabled = False
         self.authonly = None
         self.mandatory = True
         self.exclude = None
