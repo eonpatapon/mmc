@@ -25,13 +25,21 @@
 Subscription configuration reader classes.
 """
 
+import os
 import logging
+from mmc.site import mmcconfdir
+from mmc.support.mmctools import Singleton
+from mmc.support.config import PluginConfig, PluginConfigFactory
+from mmc.core.users import UserManager
+from mmc.core.computers import ComputerManager
+
+log = logging.getLogger()
 
 class SubscriptionManager(Singleton):
-    def init(self, config):
-        self.config = config
-        self.config.readSubscriptionConf()
-        self.logging = logging.getLogger()
+
+    def __init__(self):
+        self.config = PluginConfigFactory.new(SubscriptionConfig, "subscription",
+                                os.path.join(mmcconfdir, "core", "subscription.ini"))
 
     def getInformations(self, dynamic = False):
         if not self.config.is_subscribe_done:
@@ -52,7 +60,10 @@ class SubscriptionManager(Singleton):
         }
         if dynamic:
             # we add the number of user and computers we have right now
-            ret['installed_users'], _ = searchUserAdvanced()
+            if UserManager().isActivated():
+                ret['installed_users'] = UserManager().getAll()
+            else:
+                ret['installed_users'] = 0
             ret['too_much_users'] = (ret['installed_users'] > ret['users'])
             if ComputerManager().isActivated():
                 ret['installed_computers'] = ComputerManager().getTotalComputerCount()
@@ -64,8 +75,7 @@ class SubscriptionManager(Singleton):
     def checkUsers(self):
         if self.config.subs_users == 0:
             return True
-        users = searchUserAdvanced()
-        if len(users) < self.config.subs_users:
+        if UserManager().getAll() < self.config.subs_users:
             return True
         return False
 
@@ -83,7 +93,7 @@ class SubscriptionManager(Singleton):
         return not self.config.is_subscribe_done
 
 
-class SubscriptionConfig:
+class SubscriptionConfig(PluginConfig):
     """
     Define values needed subscription.
     """
@@ -110,16 +120,17 @@ class SubscriptionConfig:
             else:
                 value = self.get(section, field)
             setattr(self, "subs_%s"%field, value)
-            logging.getLogger().debug("%s = %s"%(field, str(value)))
+            log.debug("%s = %s"%(field, str(value)))
         except:
             pass
 
-    def readSubscriptionConf(self, section = 'subscription'):
+    def readConf(self):
         """
         Read subscription configuration from the given section
         """
+        section = self.name
         if not self.has_section(section):
-            logging.getLogger().info("This version is a community version.")
+            log.info("This version is a community version.")
             return False
         self.is_subscribe_done = True
         try:
@@ -134,7 +145,7 @@ class SubscriptionConfig:
         except:
             pass
 
-        logging.getLogger().info("This version has been subscribed for '%s' products"%(" & ".join(self.subs_product_name)))
+        log.info("This version has been subscribed for '%s' products"%(" & ".join(self.subs_product_name)))
 
         self.getValueMacro(section, "vendor_name")
         self.getValueMacro(section, "vendor_mail")

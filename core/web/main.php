@@ -31,8 +31,8 @@ ob_start();
 require("includes/assert.inc.php");
 require("includes/session.inc.php");
 require("includes/config.inc.php");
+require("includes/core.inc.php");
 require_once("includes/i18n.inc.php");
-require("modules/base/includes/edit.inc.php");
 require("includes/acl.inc.php");
 
 /**
@@ -117,6 +117,7 @@ function autoInclude() {
         unset($tab);
     }
 
+
     /* Redirect user to a default page. */
     if (
         (!isset($redirArray[$__module][$__submod][$__action]))
@@ -125,7 +126,7 @@ function autoInclude() {
         $__module = "base";
         $__submod = "main";
         $__action = "default";
-    }
+        }
 
     if (!isNoHeader($__module, $__submod, $__action)) {
         require_once("graph/header.inc.php");

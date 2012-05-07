@@ -33,9 +33,6 @@ else if (isset($_GET['lang']))
 require("includes/config.inc.php");
 require("includes/core.inc.php");
 require("includes/core-xmlrpc.inc.php");
-#require("modules/base/includes/users.inc.php");
-#require("modules/base/includes/edit.inc.php");
-#require("modules/base/includes/groups.inc.php");
 require("includes/PageGenerator.php");
 
 global $conf;

@@ -23,7 +23,7 @@ function auth_user ($login, $pass)
         return false;
     }
 
-    /*$subscription = getSubscriptionInformation(true);
+    $subscription = getSubscriptionInformation(true);
     if ($subscription['is_subsscribed']) {
         $msg = array();
         if ($subscription['too_much_users']) {
@@ -38,9 +38,29 @@ function auth_user ($login, $pass)
 
             new NotifyWidgetWarning(implode($warn, '<br/>'));
         }
-    }*/
+    }
 
     return true;
+}
+
+function getSubscriptionInformation($is_dynamic) {
+    return xmlCall("core.getSubscriptionInformation", array($is_dynamic));
+}
+
+function isCommunityVersion($xmlrpc = False) {
+    global $conf;
+    try {
+        if ($xmlrpc) {
+            if (!isset($_SESSION["core.isCommunityVersion"])) {
+                $_SESSION["core.isCommunityVersion"] = xmlCall("core.isCommunityVersion");
+            }
+            return $_SESSION["core.isCommunityVersion"];
+        } else {
+            return $conf["global"]["community"];
+        }
+    } catch (Exception $e) {
+        return true;
+    }
 }
 
 ?>

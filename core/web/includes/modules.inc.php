@@ -38,7 +38,7 @@ function fetchModulesList($dir) {
 
     $ret = array();
     $registerList = array();
-    
+
     if (isset($_SESSION["supportModList"])) {
         foreach($_SESSION["supportModList"] as $module) {
             if (file_exists($dir.$module.'/infoPackage.inc.php') &&
@@ -158,10 +158,10 @@ function insert_without_delete($arr,$ind,$value) {
 
 function getSorted($objlist) {
     $prio = array();
-   foreach ($objlist as $obj) {
+    foreach ($objlist as $obj) {
+        if ($obj)
             $prio = insert_without_delete($prio,$obj->getPriority(),$obj);
     }
-
     ksort($prio);
     return $prio;
 }
@@ -177,13 +177,15 @@ function autoGenerateNavbar() {
     $prio = array();
 
     foreach ($MMCApp->getModules() as $mod) {
-        foreach ($mod->getSubmodules() as $submod) {
-            $add = False;
-            foreach($submod->getPages() as $page) {
-                $add = $page->hasAccessAndVisible($mod, $submod);
-                if ($add) break;
+        if ($mod) {
+            foreach ($mod->getSubmodules() as $submod) {
+                $add = False;
+                foreach($submod->getPages() as $page) {
+                    $add = $page->hasAccessAndVisible($mod, $submod);
+                    if ($add) break;
+                }
+                if ($add) $prio = insert_without_delete($prio,$submod->getPriority(),$submod);
             }
-            if ($add) $prio = insert_without_delete($prio,$submod->getPriority(),$submod);
         }
     }
 
@@ -232,10 +234,12 @@ function includeLocalCss($dirA) {
 function isNoHeader($pModules,$pSubmod,$pAction) {
     $MMCApp =&MMCApp::getInstance();
     $mod = $MMCApp->getModule($pModules);
-
-    $submodo = $mod->_submod[$pSubmod];
-    $actiono = $submodo->_pages[$pAction];
-    return ($actiono->_options["noHeader"]||$actiono->_options["AJAX"]);
+    if ($mod) {
+        $submodo = $mod->_submod[$pSubmod];
+        $actiono = $submodo->_pages[$pAction];
+        return ($actiono->_options["noHeader"]||$actiono->_options["AJAX"]);
+    }
+    return false;
 }
 
 /**

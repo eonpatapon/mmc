@@ -25,6 +25,7 @@
 Computer Manager is used to call methods giving informations on computers whatever is the computer backend.
 
 """
+
 import logging
 from mmc.support.mmctools import Singleton
 

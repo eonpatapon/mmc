@@ -32,18 +32,30 @@ require("includes/session.inc.php");
 
 includeInfoPackage(fetchModulesList($conf["global"]["rootfsmodules"]));
 
-echo "<h2>" . _("MMC components version") . "</h2>";
-echo "<h3>" . _("MMC agent: version") . " " . $_SESSION["modListVersion"]['ver'] . "</h3>";
-foreach ($_SESSION["supportModList"] as $modName) {
-    echo "<b>$modName " . _T("plugin", "base") . "</b><br/>";
-    $apiver = xmlCall($modName.".getVersion",null);
-    echo _("agent: version") . " " . $apiver . "<br/>";
-    if (in_array($modName, $_SESSION["modulesList"])) {
-        echo _("web: version") . " " . $__version[$modName] . "<br/>";
-    } else {
-        echo '<div style="color : #D00;">' . _("web: plugin is not installed") . '</div>';
+$modules = array();
+foreach ($_SESSION["supportModList"] as $name) {
+    $agent_version = xmlCall($name.".getVersion", null);
+    if (in_array($name, $_SESSION["modulesList"]))
+        $web_version = $__version[$name];
+    else
+        $web_version = false;
+    $modules[$name] = array('agent' => $agent_version, 'web' => $web_version);
+}
+
+echo "<h1>" . _("MMC components version") . "</h1><br />
+<strong>" . _("MMC agent: version") . "</strong> " . $_SESSION["modListVersion"]['ver'] . "<br />
+<strong>" . _("core agent plugin: version") . "</strong> " . $modules['core']['agent'] . "<br /><br />";
+
+foreach ($modules as $name => $versions) {
+    if ($name != "core") {
+        echo "<strong>$name " . _("plugin") . "</strong><br/>";
+        echo _("agent: version") . " " . $versions['agent'] . "<br/>";
+        if ($versions['web'])
+            echo _("web: version") . " " . $versions['web'] . "<br/>"; 
+        else
+            echo '<div style="color : #D00;">' . _("web: plugin is not installed") . '</div>';
+        echo "<br/>";
     }
-    echo "<br/>";
 }
 
 ?>

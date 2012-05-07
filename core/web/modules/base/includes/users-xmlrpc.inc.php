@@ -211,25 +211,4 @@ function changeUserTelephoneNumbers($uid, $numbers) {
     xmlCall("base.changeUserAttributes", array($uid, "telephoneNumber", $update));
 }
 
-function getSubscriptionInformation($is_dynamic) {
-    return xmlCall("base.getSubscriptionInformation", array($is_dynamic));
-}
-
-
-function isCommunityVersion($xmlrpc = False) {
-    global $conf;
-    try {
-        if ($xmlrpc) {
-            if (!isset($_SESSION["base.isCommunityVersion"])) {
-                $_SESSION["base.isCommunityVersion"] = xmlCall("base.isCommunityVersion");
-            }
-            return $_SESSION["base.isCommunityVersion"];
-        } else {
-            return $conf["global"]["community"];
-        }
-    } catch (Exception $e) {
-        return true;
-    }
-}
-
 ?>

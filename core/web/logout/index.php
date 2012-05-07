@@ -30,7 +30,6 @@ require("includes/session.inc.php");
 require("includes/acl.inc.php");
 require("includes/i18n.inc.php");
 require("includes/PageGenerator.php");
-require("modules/base/includes/edit.inc.php");
 
 $root = $conf["global"]["root"];
 

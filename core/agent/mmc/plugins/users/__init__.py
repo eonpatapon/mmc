@@ -33,6 +33,7 @@ from mmc.site import datadir
 from mmc.core.version import scmRevision
 from mmc.core.ldapconn import LdapConnection, LdapConfigConnection
 from mmc.core.audit import AuditFactory as AF
+from mmc.core.users import UserManager, UserI
 from mmc.support import ldapom
 from mmc.support.config import PluginConfigFactory
 from mmc.support.mmctools import delete_diacritics
@@ -89,8 +90,14 @@ def activate():
 
     return True
 
+def activate_2():
+    UserManager().register("ldap", Users)
+    UserManager().select("ldap")
 
-class Users(LdapConnection):
+    return True
+
+
+class Users(LdapConnection, UserI):
 
     audit_plugin_name = PLUGIN_NAME
     audit_mod_attr = AA.USERS_MOD_USER_ATTR
@@ -120,15 +127,28 @@ class Users(LdapConnection):
         # Limit queries to the users OU
         self.changeBase(str(self.getOU(self.config.users_ou)))
 
-    def getOne(self, uid):
+    def getOne(self, ctx, uid):
         """
         Get user from the directory
         """
         for user in self.search('uid=%s' % uid):
             return user
+        if uid == "root":
+            return self.retrieve_ldap_node(self.ldap_config.login)
         raise UserDoesNotExists()
 
-    def getAll(self, search = "*", base = None):
+    def getACL(self, ctx, uid):
+        """
+        Get user ACL from directory
+        """
+        user = self.getOne(ctx, uid)
+
+        if 'lmcACL' in user:
+            return str(user.lmcACL)
+        else:
+            return ""
+
+    def getAll(self, ctx, search = "*", base = None):
         """
         Return the list of users below the base
         """
@@ -137,7 +157,7 @@ class Users(LdapConnection):
             (search, search, search, search, search)
         return list(self.search(filter, base=base))
 
-    def addOU(self, name, base = None):
+    def addOU(self, ctx, name, base = None):
         """
         Add an OU for users
         """
@@ -147,7 +167,7 @@ class Users(LdapConnection):
 
         return ou
 
-    def addOne(self, uid, password, attrs = {}, base = None):
+    def addOne(self, ctx, uid, password, attrs = {}, base = None):
         """
         Add inetOrgUser user to base
         """
@@ -599,24 +619,6 @@ class Groups(LdapConnection):
         r.commit()
 
 
-# Exported XML-RPC methods
-# Users
-def getUser(uid):
-    return Users().getOne(uid)
-def getUsers(search = "*", base = None):
-    return Users().getAll(search, base)
-def addUser(uid, password, attrs = {}, base = None):
-    return Users().addOne(uid, password, attrs, base)
-def changeUserPassword(uid, password, old_password = None, bind = False):
-    return Users().changePassword(uid, password, old_password, bind)
-def getUserGroups(uid):
-    return Users().getGroups(uid)
-def changeUserAttribute(uid, attr, value, log = True):
-    return Users().changeAttribute(uid, attr, value, log)
-def changeUserAttributes(uid, attrs, log = True):
-    return Users().changeAttributes(uid, attrs, log)
-def removeUser(uid):
-    return Users().removeOne(uid)
 # Posix user "submodule"
 def addUserPosixAttributes(uid, password, attrs = {}):
     return PosixUsers().addAttributes(uid, password, attrs)
