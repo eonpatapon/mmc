@@ -38,27 +38,27 @@ class TestUsersGroups(unittest.TestCase):
         self.users.changeBase(self.users_ou._dn)
 
     def testAddDelUser(self):
-        u = self.users.addOne("user", "pasééù", {'givenName': 'Test user'})
+        u = self.users.addOne(None, "user", "pasééù", {'givenName': 'Test user'})
         self.assertEqual(str(u.uid), 'user')
         self.assertTrue(u.check_password('pasééù'))
-        self.assertEqual(len(self.users.getAll()), 1)
-        self.users.changeAttribute('user', 'mail', 'user@example.com')
+        self.assertEqual(len(self.users.getAll(None)), 1)
+        self.users.changeAttributes(None, 'user', {'mail': 'user@example.com'})
         # update our current object
         u.retrieve_attributes()
         self.assertEqual(str(u.mail), 'user@example.com')
-        self.users.changeAttributes('user', {'preferredLanguage': 'fr;en', 'mobile': '+336456789' })
+        self.users.changeAttributes(None, 'user', {'preferredLanguage': 'fr;en', 'mobile': '+336456789' })
         u.retrieve_attributes()
         self.assertEqual(unicode(u.preferredLanguage), u"fr;en")
         self.assertEqual(unicode(u.mobile), u"+336456789")
-        self.users.removeOne('user')
+        self.users.removeOne(None, 'user')
         self.assertFalse(self.users.check_if_dn_exists(u._dn))
 
     def testChangePassword(self):
-        u = self.users.addOne("user", "pasééù", {'givenName': 'Test user'})
+        u = self.users.addOne(None, "user", "pasééù", {'givenName': 'Test user'})
         self.assertTrue(u.check_password('pasééù'))
-        u = self.users.changePassword("user", "plop")
+        u = self.users.changePassword(None, "user", "plop")
         self.assertTrue(u.check_password('plop'))
-        u = self.users.changePassword("user", "pouetéé", "plop", True)
+        u = self.users.changePassword(None, "user", "pouetéé", "plop", True)
         self.assertTrue(u.check_password('pouetéé'))
 
     def testAddDelGroup(self):
@@ -73,7 +73,7 @@ class TestUsersGroups(unittest.TestCase):
 
     def testAddDelGroupUser(self):
         self.groups.addOne("group")
-        self.users.addOne("user", "pasééù", {'givenName': 'Test user'})
+        self.users.addOne(None, "user", "pasééù", {'givenName': 'Test user'})
         g = self.groups.addUser("group", "user")
         self.assertEqual(list(g.objectClass), [u'groupOfNames', u'posixGroup'])
         self.assertEqual(str(g.memberUid), 'user')
@@ -88,8 +88,8 @@ class TestUsersGroups(unittest.TestCase):
         self.assertRaises(UserDoesNotExists, self.groups.addUser, "group", "user")
 
     def testRemoveUserFromAll(self):
-        self.users.addOne("user1", "pasééù", {'givenName': 'Test user 1'})
-        self.users.addOne("user2", "pasééù", {'givenName': 'Test user 2'})
+        self.users.addOne(None, "user1", "pasééù", {'givenName': 'Test user 1'})
+        self.users.addOne(None, "user2", "pasééù", {'givenName': 'Test user 2'})
         self.groups.addOne("group1", {'description': 'Test group 1 héhé'})
         self.groups.addUser("group1", "user1")
         g = self.groups.addUser("group1", "user2")
@@ -106,18 +106,18 @@ class TestUsersGroups(unittest.TestCase):
         self.assertRaises(AttributeError, g.__getattr__, 'memberUid')
 
     def testGetuserGroups(self):
-        self.users.addOne("user1", "pasééù", {'givenName': 'Test user 1'})
+        self.users.addOne(None, "user1", "pasééù", {'givenName': 'Test user 1'})
         self.groups.addOne("group1", {'description': 'Test group 1'})
         self.groups.addOne("group2", {'description': 'Test group 1'})
         self.groups.addUser("group1", "user1")
         self.groups.addUser("group2", "user1")
-        groups = self.users.getGroups("user1")
+        groups = self.users.getGroups(None, "user1")
         self.assertEqual(str(groups[0].cn), "group1")
         self.assertEqual(str(groups[1].cn), "group2")
 
     def testAddRemovePosixAttributes(self):
-        self.users.addOne("user1", "pasééù", {'givenName': 'Test user 1'})
-        self.users.addOne("user2", "pasééù", {'givenName': 'Test user 2', 'sn': "Éàù"})
+        self.users.addOne(None, "user1", "pasééù", {'givenName': 'Test user 1'})
+        self.users.addOne(None, "user2", "pasééù", {'givenName': 'Test user 2', 'sn': "Éàù"})
         g = self.groups.addOne("group1", {'description': 'Test group 1'})
         self.assertEqual(str(g.gidNumber), "10000")
         g = self.groups.addOne("group2", {'description': 'Test group 2'})

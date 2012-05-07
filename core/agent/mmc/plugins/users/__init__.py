@@ -139,7 +139,7 @@ class Users(LdapConnection, UserI):
 
     def getACL(self, ctx, uid):
         """
-        Get user ACL from directory
+        Get user MMC ACLs from directory
         """
         user = self.getOne(ctx, uid)
 
@@ -157,7 +157,13 @@ class Users(LdapConnection, UserI):
             (search, search, search, search, search)
         return list(self.search(filter, base=base))
 
-    def addOU(self, ctx, name, base = None):
+    def canAddBase(self, ctx):
+        """
+        Is the connected user allowed to add user OUs
+        """
+        return True
+
+    def addBase(self, ctx, name, base = None):
         """
         Add an OU for users
         """
@@ -166,6 +172,12 @@ class Users(LdapConnection, UserI):
         r.commit()
 
         return ou
+
+    def canAddOne(self, ctx):
+        """
+        Is the user allowed to add users
+        """
+        return True
 
     def addOne(self, ctx, uid, password, attrs = {}, base = None):
         """
@@ -176,7 +188,7 @@ class Users(LdapConnection, UserI):
         r = AF().log(PLUGIN_NAME, AA.USERS_ADD_USER, [(uid, AT.USER)])
 
         try:
-            user = self.getOne(uid)
+            user = self.getOne(ctx, uid)
             raise UserAlreadyExists()
         except UserDoesNotExists:
             # Create the user
@@ -193,17 +205,23 @@ class Users(LdapConnection, UserI):
             user.save()
             r.commit()
             # Set the password
-            self.changePassword(str(user.uid), password)
+            self.changePassword(ctx, str(user.uid), password)
             # Run hooks
             self.runHook("users.adduser", uid, password)
 
             return user
 
-    def getGroups(self, uid):
+    def canHaveGroups(self, ctx):
+        """
+        Can the users have groups
+        """
+        return True
+
+    def getGroups(self, ctx, uid):
         """
         Get the user's groups
         """
-        user = self.getOne(uid)
+        user = self.getOne(ctx, uid)
         groups = []
         for group in Groups().getAll():
             if 'member' in group and str(user) in group.member:
@@ -211,11 +229,17 @@ class Users(LdapConnection, UserI):
 
         return groups
 
-    def changePassword(self, uid, password, old_password = None, bind = False):
+    def canChangePassword(self, ctx, uid):
+        """
+        Is the connected user allowed to change uid password
+        """
+        return True
+
+    def changePassword(self, ctx, uid, password, old_password = None, bind = False):
         """
         Change the user password using LDAP Password Modify Extended Operation
         """
-        user = self.getOne(uid)
+        user = self.getOne(ctx, uid)
         r = AF().log(PLUGIN_NAME, AA.USERS_MOD_USER_PASSWORD, [(str(user.uid), AT.USER)])
 
         # Bind as the user to change the password
@@ -234,20 +258,22 @@ class Users(LdapConnection, UserI):
 
         return user
 
-    def changeAttributes(self, uid, attrs, log = True):
+    def canChangeAttributes(self, ctx, uid):
+        """
+        Is the connected user allowed to change uid attributes
+        """
+        return True
+
+    def changeAttributes(self, ctx, uid, attrs, log = True):
         """
         Change attributes of a user
 
         attrs: dict((attr, value), ...)
         """
-        user = self.getOne(uid)
+        user = self.getOne(ctx, uid)
         for attr, value in attrs.iteritems():
             user = self._validateUserAttribute(user, attr, value, log)
         return user
-
-    def changeAttribute(self, uid, attr, value, log = True):
-        user = self.getOne(uid)
-        return self._validateUserAttribute(user, attr, value, log)
 
     def _validateUserAttribute(self, user, attr, value, log = True):
         return self._changeUserAttribute(user, attr, value, log)
@@ -274,13 +300,19 @@ class Users(LdapConnection, UserI):
         else:
             raise UserDoesNotExists()
 
-    def removeOne(self, uid):
+    def canRemoveOne(self, ctx, uid):
+        """
+        Is the connected user allowed to remove uid user
+        """
+        return True
+
+    def removeOne(self, ctx, uid):
         """
         Remove a user from the directory
         """
         r = AF().log(PLUGIN_NAME, AA.USERS_DEL_USER, [(uid, AT.USER)])
 
-        user = self.getOne(uid)
+        user = self.getOne(ctx, uid)
         # Remove the user from all groups
         Groups().removeUserFromAll(user.uid)
         # Finally delete the user
@@ -305,7 +337,7 @@ class PosixUsers(Users):
         """
         Add POSIX attributes to a user
         """
-        user = self.getOne(uid)
+        user = self.getOne(None, uid)
 
         if not 'posixAccount' in user.objectClass:
             r = AF().log(PLUGIN_NAME, AA.USERS_ADD_USER_POSIX_ATTRS, [(uid, AT.USER)])
@@ -350,7 +382,7 @@ class PosixUsers(Users):
         """
         Remove all POSIX attributes from a user
         """
-        user = self.getOne(uid)
+        user = self.getOne(None, uid)
 
         if 'posixAccount' in user.objectClass:
             r = AF().log(PLUGIN_NAME, AA.USERS_DEL_USER_POSIX_ATTRS, [(uid, AT.USER)])
@@ -365,7 +397,7 @@ class PosixUsers(Users):
 
     def _getUID(self):
         uidNumber = self.config.uid_start - 1
-        for user in self.getAll():
+        for user in self.getAll(None):
             if 'uidNumber' in user and int(str(user.uidNumber)) > uidNumber:
                     uidNumber = int(str(user.uidNumber))
         uidNumber += 1
@@ -478,7 +510,7 @@ class Groups(LdapConnection):
         """
         Add a user to a group
         """
-        user = Users().getOne(uid)
+        user = Users().getOne(None, uid)
         group = self.getOne(cn)
                 
         r = AF().log(PLUGIN_NAME,
@@ -520,7 +552,7 @@ class Groups(LdapConnection):
         """
         Remove a user from a group
         """
-        user = Users().getOne(uid)
+        user = Users().getOne(None, uid)
         group = self.getOne(cn)
 
         if 'groupOfNames' in group.objectClass:
@@ -556,7 +588,7 @@ class Groups(LdapConnection):
         """
         Remove a user from all groups
         """
-        user = Users().getOne(uid)
+        user = Users().getOne(None, uid)
 
         r = AF().log(PLUGIN_NAME,
                      AA.USERS_DEL_USER_FROM_ALL_GROUPS,
