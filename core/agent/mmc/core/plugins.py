@@ -93,13 +93,13 @@ class PluginManager(Singleton):
         plugin), 0 on non-fatal failure, and the module itself if
         the load was successful
         """
-        log.debug('loading %s' % (name,))
+        log.debug('Searching module %s' % name)
         f, p, d = imp.find_module(name, ['plugins'])
 
         try:
-            log.debug("Trying to load plugin %s" % name)
+            log.debug("Trying to load module %s" % name)
             plugin = imp.load_module(name, f, p, d)
-            log.debug("Plugin loaded: %s" % name)
+            log.debug("Module loaded: %s" % plugin)
         except Exception,e:
             log.exception(e)
             log.error('Plugin '+ name+ " raise an exception.\n"+ name+ " not loaded.")
@@ -117,29 +117,28 @@ class PluginManager(Singleton):
             # log.debug('Trying to force startup of plugin %s but no "activateForced" method found\nFalling back to the normale activate method' % (name,))
             func = getattr(plugin, "activate")
         except AttributeError:
-            log.error('File '+ name+ ' is not a MMC plugin.')
+            log.error('File %s is not a MMC plugin.' % name)
             plugin = None
             return 0
 
         # If is active
         try:
             if (func()):
-                version = 'API version: '+str(getattr(plugin, "getApiVersion")())+' build(' +str(getattr(plugin, "getRevision")())+')'
-                log.info('Plugin ' + name + ' loaded, ' + version)
-                # self.modList.append(str(name))
+                version = str(getattr(plugin, "getVersion")())
+                log.info('Plugin %s loaded, version: %s' % (name, version))
             else:
                 # If we can't activate it
-                log.info('Plugin '+name+' not loaded.')
+                log.info('Plugin %s not loaded.' % name)
                 plugin = None
         except Exception, e:
-            log.error('Error while trying to load plugin ' + name)
+            log.error('Error while trying to load plugin %s' % name)
             log.exception(e)
             plugin = None
             # We do no exit but go on when another plugin than base fail
 
-        # Check that "base" plugin was loaded
-        if name == "base" and not plugin:
-            log.error("MMC agent can't run without the base plugin. Exiting.")
+        # Check that "core" plugin was loaded
+        if name == "core" and not plugin:
+            log.error("MMC agent can't run without the core plugin. Exiting.")
             return 4
         return plugin
 
