@@ -23,6 +23,7 @@
  */
 
 $root = $conf["global"]["root"];
+
 ?>
 </head>
 <body>

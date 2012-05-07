@@ -32,8 +32,8 @@ require("includes/assert.inc.php");
 require("includes/session.inc.php");
 require("includes/config.inc.php");
 require("includes/core.inc.php");
-require_once("includes/i18n.inc.php");
 require("includes/acl.inc.php");
+require_once("includes/i18n.inc.php");
 
 /**
  Lookup and load all MMC modules

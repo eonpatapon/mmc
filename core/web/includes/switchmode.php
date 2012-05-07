@@ -1,9 +1,7 @@
 <?php
 /**
  * (c) 2004-2007 Linbox / Free&ALter Soft, http://linbox.com
- * (c) 2007-2008 Mandriva, http://www.mandriva.com
- *
- * $Id$
+ * (c) 2007-2012 Mandriva, http://www.mandriva.com
  *
  * This file is part of Mandriva Management Console (MMC).
  *
@@ -24,17 +22,15 @@
 ?>
 <?php 
 
+require("session.inc.php");
 require("config.inc.php");
-require("../modules/base/includes/edit.inc.php");
+require("core.inc.php");
 
-session_start();
-
-if (isExpertMode()) {
+if (isExpertMode() == 1)
     setExpertMode(0);
-  } else {
+else
     setExpertMode(1);
-  } 
 
-header("Location: ".$_SERVER["HTTP_REFERER"]);
+header("Location: " . $_SERVER["HTTP_REFERER"]);
 
 ?>

@@ -27,6 +27,7 @@
 $topLeft = 1;
 
 global $acl_error;
+
 if ($acl_error) {
   print "<div id=\"errorCode\">$acl_error</div>";
 }
