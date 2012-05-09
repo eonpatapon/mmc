@@ -23,16 +23,16 @@
 
 import unittest
 
-from mmc.plugins.ldap_users import Users, PosixUsers, UserDoesNotExists, \
-                                   Groups
+from mmc.plugins.ldap_users import LdapUsers, PosixUsers, UserDoesNotExists, \
+                                   LdapGroups
 
 class TestUsersGroups(unittest.TestCase):
 
     def setUp(self):
-        self.groups = Groups()
+        self.groups = LdapGroups()
         self.groups_ou = self.groups.addOU("groups_test")
         self.groups.changeBase(self.groups_ou._dn)
-        self.users = Users()
+        self.users = LdapUsers()
         self.posix_users = PosixUsers()
         self.users_ou = self.users.addOU("users_tests")
         self.users.changeBase(self.users_ou._dn)

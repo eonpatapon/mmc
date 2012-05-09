@@ -135,7 +135,11 @@ class AuthenticatorConfig(MMCConfigParser):
         fp.close()
 
     def readConf(self):
-        for option in ["enabled", "authonly", "exclude"]:
+        try:
+            self.enabled = self.getboolean(self.section, "enabled")
+        except:
+            pass
+        for option in ["authonly", "exclude"]:
             try:
                 self.__dict__[option] = self.get(self.section, option).lower().split()
             except NoSectionError:

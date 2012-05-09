@@ -6,7 +6,6 @@ from mmc.core.audit import AuditFactory as AF
 from mmc.core.subscriptions import SubscriptionManager
 from mmc.core.auth import AuthenticationManager
 from mmc.core.auth.pam import PAMAuthenticator
-from mmc.core.auth.baseldap import BaseLdapAuthenticator
 from mmc.core.auth.externalldap import ExternalLdapAuthenticator
 from mmc.core.provisioning import ProvisioningManager
 from mmc.core.users import UserManager
@@ -29,7 +28,6 @@ def activate():
 
     # Register authenticators
     AuthenticationManager().register("pam", PAMAuthenticator)
-    AuthenticationManager().register("baseldap", BaseLdapAuthenticator)
     AuthenticationManager().register("externalldap", ExternalLdapAuthenticator)
 
     return True

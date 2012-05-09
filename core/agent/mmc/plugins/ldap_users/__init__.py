@@ -34,11 +34,13 @@ from mmc.core.version import scmRevision
 from mmc.core.ldapconn import LdapConnection, LdapConfigConnection
 from mmc.core.audit import AuditFactory as AF
 from mmc.core.users import UserManager, UserI
+from mmc.core.auth import AuthenticationManager
 from mmc.support import ldapom
 from mmc.support.config import PluginConfigFactory
 from mmc.support.mmctools import delete_diacritics
 from mmc.plugins.ldap_users.audit import AA, AT, PLUGIN_NAME
-from mmc.plugins.ldap_users.config import UsersConfig
+from mmc.plugins.ldap_users.config import LdapUsersConfig
+from mmc.plugins.ldap_users.auth import LdapUsersAuthenticator
 
 VERSION = "3.0.3.2"
 APIVERSION = "0:0:0"
@@ -51,20 +53,22 @@ def getRevision(): return REVISION
 logger = logging.getLogger()
 
 def activate():
+    config = PluginConfigFactory.new(LdapUsersConfig, "ldap_users")
     # Check LDAP credentials
     try:
-        conn = LdapConnection()
+        conn = LdapConnection(config.uri, config.base, config.login,
+                              config.password, config.certfile)
     except ldap.INVALID_CREDENTIALS:
         logger.error("Can't bind to LDAP: invalid credentials.")
         return False
     # Check and load necessary schemas in LDAP
     try:
         schemas = os.path.join(datadir, 'doc', 'python-mmc-users', 'contrib')
-        config = LdapConfigConnection()
-        if not config.getSchema('mmc'):
-            config.addSchema(os.path.join(schemas, 'mmc.ldif'))
-        if not config.getSchema('rfc2307bis'):
-            config.addSchema(os.path.join(schemas, 'rfc2307bis.ldif'))
+        LdapConfig = LdapConfigConnection()
+        if not LdapConfig.getSchema('mmc'):
+            LdapConfig.addSchema(os.path.join(schemas, 'mmc.ldif'))
+        if not LdapConfig.getSchema('rfc2307bis'):
+            LdapConfig.addSchema(os.path.join(schemas, 'rfc2307bis.ldif'))
     except:
         logger.warning("Can't access LDAP cn=config database.")
         try:
@@ -75,13 +79,12 @@ def activate():
         except:
             logger.error("Invalid MMC schema.")
     # Create required OUs
-    config = PluginConfigFactory.new(UsersConfig, "users")
     ous = [ config.users_ou, config.groups_ou ]
     for ou in ous:
         if not conn.getOU(ou):
             conn.addOU(ou)
     # Create the default group
-    groups = Groups()
+    groups = LdapGroups()
     try:
         groups.addOne(config.default_group)
         logger.info("Default user group %s created." % config.default_group)
@@ -91,14 +94,16 @@ def activate():
     return True
 
 def activate_2():
-    config = PluginConfigFactory.new(UsersConfig, "users")
-    UserManager().register(config.backend_name, Users)
+    config = PluginConfigFactory.new(LdapUsersConfig, "ldap_users")
+    UserManager().register(config.backend_name, LdapUsers)
     UserManager().select(config.backend_name)
+    
+    AuthenticationManager().register("ldap", LdapUsersAuthenticator)
 
     return True
 
 
-class Users(LdapConnection, UserI):
+class LdapUsers(LdapConnection, UserI):
 
     audit_plugin_name = PLUGIN_NAME
     audit_mod_attr = AA.USERS_MOD_USER_ATTR
@@ -123,8 +128,10 @@ class Users(LdapConnection, UserI):
              'lmcACL']
 
     def __init__(self):
-        LdapConnection.__init__(self)
-        self.config = PluginConfigFactory.new(UsersConfig, "users")
+        self.config = PluginConfigFactory.new(LdapUsersConfig, "ldap_users")
+        LdapConnection.__init__(self, self.config.uri, self.config.base,
+                                self.config.login, self.config.password,
+                                self.config.certfile)
         # Limit queries to the users OU
         self.changeBase(str(self.getOU(self.config.users_ou)))
 
@@ -135,7 +142,7 @@ class Users(LdapConnection, UserI):
         for user in self.search('uid=%s' % uid):
             return user
         if uid == "root":
-            return self.retrieve_ldap_node(self.ldap_config.login)
+            return self.retrieve_ldap_node(self._login)
         raise UserDoesNotExists()
 
     def getACL(self, ctx, uid):
@@ -224,7 +231,7 @@ class Users(LdapConnection, UserI):
         """
         user = self.getOne(ctx, uid)
         groups = []
-        for group in Groups().getAll():
+        for group in LdapGroups().getAll():
             if 'member' in group and str(user) in group.member:
                 groups.append(group)
 
@@ -315,7 +322,7 @@ class Users(LdapConnection, UserI):
 
         user = self.getOne(ctx, uid)
         # Remove the user from all groups
-        Groups().removeUserFromAll(user.uid)
+        LdapGroups().removeUserFromAll(user.uid)
         # Finally delete the user
         user.delete()
 
@@ -325,7 +332,7 @@ class Users(LdapConnection, UserI):
         r.commit()
 
 
-class PosixUsers(Users):
+class PosixUsers(LdapUsers):
 
     attrs = ['uidNumber', # req
              'gidNumber', # req
@@ -405,7 +412,7 @@ class PosixUsers(Users):
         return str(uidNumber)
 
     def _getGID(self, group):
-        return str(Groups().getOne(group).gidNumber)
+        return str(LdapGroups().getOne(group).gidNumber)
 
     def _getHomeDir(self, uid, home_dir = None, check_exists = True):
         """
@@ -438,7 +445,7 @@ class PosixUsers(Users):
 
         return self._changeUserAttribute(user, attr, value, log)
 
-class Groups(LdapConnection):
+class LdapGroups(LdapConnection):
 
     audit_plugin_name = PLUGIN_NAME
     audit_mod_attr = AA.USERS_MOD_GROUP_ATTR
@@ -450,8 +457,10 @@ class Groups(LdapConnection):
              'memberUid']
 
     def __init__(self):
-        LdapConnection.__init__(self)
-        self.config = PluginConfigFactory.new(UsersConfig, "users")
+        self.config = PluginConfigFactory.new(LdapUsersConfig, "ldap_users")
+        LdapConnection.__init__(self, self.config.uri, self.config.base,
+                                self.config.login, self.config.password,
+                                self.config.certfile)
         self.changeBase(str(self.getOU(self.config.groups_ou)))
 
     def getOne(self, cn):
@@ -511,7 +520,7 @@ class Groups(LdapConnection):
         """
         Add a user to a group
         """
-        user = Users().getOne(None, uid)
+        user = LdapUsers().getOne(None, uid)
         group = self.getOne(cn)
                 
         r = AF().log(PLUGIN_NAME,
@@ -553,7 +562,7 @@ class Groups(LdapConnection):
         """
         Remove a user from a group
         """
-        user = Users().getOne(None, uid)
+        user = LdapUsers().getOne(None, uid)
         group = self.getOne(cn)
 
         if 'groupOfNames' in group.objectClass:
@@ -589,7 +598,7 @@ class Groups(LdapConnection):
         """
         Remove a user from all groups
         """
-        user = Users().getOne(None, uid)
+        user = LdapUsers().getOne(None, uid)
 
         r = AF().log(PLUGIN_NAME,
                      AA.USERS_DEL_USER_FROM_ALL_GROUPS,
@@ -663,23 +672,23 @@ def removeUserPosixAttributes(uid):
     return PosixUsers().removeAttributes(uid)
 # Groups
 def getGroup(cn):
-    return Groups().getOne(cn)
+    return LdapGroups().getOne(cn)
 def getGroups(search = "*", base = None):
-    return Groups().getAll(search, base)
+    return LdapGroups().getAll(search, base)
 def addGroup(cn, attrs = {}, base = None):
-    return Groups().addOne(cn, attrs, base)
+    return LdapGroups().addOne(cn, attrs, base)
 def changeGroupAttribute(cn, attr, value, log = True):
-    return Groups().changeAttribute(cn, attr, value, log)
+    return LdapGroups().changeAttribute(cn, attr, value, log)
 def changeGroupsAttributes(cn, attrs, log = True):
-    return Groups().changeAttributes(cn, attrs, log)
+    return LdapGroups().changeAttributes(cn, attrs, log)
 def addGroupUser(cn, uid):
-    return Groups().addUser(cn, uid)
+    return LdapGroups().addUser(cn, uid)
 def removeGroupUser(cn, uid):
-    return Groups().removeUser(cn, uid)
+    return LdapGroups().removeUser(cn, uid)
 def removeGroupsUser(uid):
-    return Groups().removeUserFromAll(uid)
+    return LdapGroups().removeUserFromAll(uid)
 def removeGroup(cn):
-    return Groups().removeOne(cn)
+    return LdapGroups().removeOne(cn)
 
 
 # Exceptions for this plugin

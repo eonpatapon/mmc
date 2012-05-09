@@ -28,23 +28,14 @@ import xmlrpclib
 import tempfile
 from sets import Set
 from ldif import LDIFParser
-from mmc.site import mmcconfdir
 from mmc.support import mmctools, ldapom
-from mmc.support.config import PluginConfig, PluginConfigFactory
 
-logger = logging.getLogger()
+log = logging.getLogger()
 
 class LdapConnection(ldapom.LdapConnection):
 
-    def __init__(self, base = None):
-        # Get LDAP connection configuration
-        self.ldap_config = PluginConfigFactory.new(LdapConfig, "ldap", 
-                                os.path.join(mmcconfdir, "core", "ldap.ini"))
-        if not base: base = self.ldap_config.base
-        ldapom.LdapConnection.__init__(self, self.ldap_config.uri,
-            base = base, login = self.ldap_config.login, 
-            password = self.ldap_config.password)
-
+    def __init__(self, uri, base, login, password, certfile = None):
+        ldapom.LdapConnection.__init__(self, uri, base, login, password, certfile)
         self._default_base = base;
 
     def changeBase(self, base):
@@ -65,7 +56,7 @@ class LdapConnection(ldapom.LdapConnection):
 
         oudn = 'ou=%s,%s' % (name, base)
         if not self.check_if_dn_exists(oudn):
-            logger.debug("Creating OU %s" % oudn)
+            log.debug("Creating OU %s" % oudn)
             ou = self.new_ldap_node(oudn)
             ou.objectClass = ['organizationalUnit', 'top']
             ou.ou = name
@@ -118,7 +109,7 @@ class LdapConnection(ldapom.LdapConnection):
         Run a hook
         """
         if hookName in self.config.hooks:
-            logger.info("Hook " + hookName + " called.")
+            log.info("Hook " + hookName + " called.")
             if uid:
                 # Make a temporary ldif file with user entry if an uid is specified
                 fd, tmpname = tempfile.mkstemp()
@@ -192,52 +183,6 @@ class LdapConfigConnection(ldapom.LdapConnection):
                 schema.save()
         p = Parser(open(ldif, 'rb'), self)
         p.parse()
-
-
-class LdapConfig(PluginConfig):
-    """
-    Define values needed by the LDAPConnection class.
-    """
-    
-    uri = 'ldap://127.0.0.1:389'
-    base = 'dc=mandriva,dc=com'
-    login = 'cn=admin,dc=mandriva,dc=com'
-    password = 'secret'
-    certfile = ''
-
-    def readConf(self):
-        """
-        Read LDAP configuration from core/ldap.ini
-        """
-
-        # Get LDAP server we are connected to
-        try:
-            self.uri = self.get("main", "uri")
-        except:
-            pass
-        try:
-            self.base = self.getdn("main", "base")
-        except ldap.LDAPError:
-            logger.error("Wrong base DN syntax !")
-            logger.error("Will use the default : %s" % self.base)
-        except:
-            pass
-        try:
-            self.login = self.getdn("main", "login")
-        except ldap.LDAPError:
-            logger.error("Wrong login DN syntax !")
-            logger.error("Will use the default : %s" % self.login)
-        except:
-            pass
-        try:
-            self.password = self.get("main", "password")
-        except:
-            pass
-        try:
-            self.certfile = self.get("main", "certfile")
-        except:
-            pass
-
 
 
 class LdapConnectionError(Exception):

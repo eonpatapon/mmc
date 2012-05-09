@@ -47,6 +47,7 @@ class ExternalLdapAuthenticatorConfig(AuthenticatorConfig, LDAPConnectionConfig)
                 except NoOptionError:
                     log.error("suffix or attr options not set. Authenticator disabled.")
                     self.enabled = False
+                    return
             try:
                 self.__dict__["bindname"] = self.getdn(self.section, "bindname")
             except NoOptionError:

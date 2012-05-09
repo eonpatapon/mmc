@@ -22,16 +22,23 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 import os
+import ldap
 from mmc.support.config import PluginConfig
 
-class UsersConfig(PluginConfig):
+class LdapUsersConfig(PluginConfig):
     """
     Define values needed by the users plugin.
     """
 
-    # Backend name
-    backend_name = 'LDAP users'
-    # Base
+    # UserManager backend name
+    backend_name = "LDAP Users"
+    # LDAP configuration
+    uri = 'ldap://127.0.0.1:389'
+    base = 'dc=mandriva,dc=com'
+    login = 'cn=admin,dc=mandriva,dc=com'
+    password = 'secret'
+    certfile = None
+    # Users
     users_ou = 'People'
     groups_ou = 'Group'
     # Posix
@@ -45,19 +52,39 @@ class UsersConfig(PluginConfig):
 
     def readConf(self):
         """
-        Read configuration from plugins/users.ini
+        Read configuration from plugins/ldap_users.ini
         """
 
         try:
-            self.backend_name = self.get("main", "backendName")
+            self.uri = self.get("ldap", "uri")
         except:
             pass
         try:
-            self.users_ou = self.get("main", "usersOU")
+            self.base = self.getdn("ldap", "base")
+        except ldap.LDAPError:
+            raise LdapUsersConfigError("Wrong DN syntax : %s" % self.get("ldap", "base"))
         except:
             pass
         try:
-            self.groups_ou = self.get("main", "groupsOU")
+            self.login = self.getdn("ldap", "login")
+        except ldap.LDAPError:
+            raise LdapUsersConfigError("Wrong DN syntax : %s" % self.get("ldap", "login"))
+        except:
+            pass
+        try:
+            self.password = self.get("ldap", "password")
+        except:
+            pass
+        try:
+            self.certfile = self.get("ldap", "certfile")
+        except:
+            pass
+        try:
+            self.users_ou = self.get("users", "usersOU")
+        except:
+            pass
+        try:
+            self.groups_ou = self.get("users", "groupsOU")
         except:
             pass
         try:
@@ -75,13 +102,13 @@ class UsersConfig(PluginConfig):
         try:
             self.skel_dir = self.get("posix", "skelDir")
             if not os.path.exists(self.skel_dir):
-                raise UsersConfigError("skel_dir does not exists")
+                raise LdapUsersConfigError("skel_dir does not exists")
         except:
             pass
         try:
             self.base_home_dir = self.get("posix", "baseHomeDir")
             if not os.path.exists(self.base_home_dir):
-                raise UsersConfigError("baseHomeDir does not exists")
+                raise LdapUsersConfigError("baseHomeDir does not exists")
         except:
             pass
         try:
@@ -93,5 +120,5 @@ class UsersConfig(PluginConfig):
         except:
             pass
 
-class UsersConfigError(Exception):
+class LdapUsersConfigError(Exception):
     pass
