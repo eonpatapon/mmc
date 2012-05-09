@@ -142,7 +142,7 @@ class LdapConnection(ldapom.LdapConnection):
 
         For more info on return type, reference to ldap.schema
         """
-        subschemasubentry_dn, schema = ldap.schema.urlfetch(self.ldap_config.uri)
+        subschemasubentry_dn, schema = ldap.schema.urlfetch(self._uri)
         schemaAttrObj = schema.get_obj(ldap.schema.ObjectClass, schemaName)
         if not schemaAttrObj is None:
             return (Set(schemaAttrObj.must) | Set(schemaAttrObj.may))
@@ -152,36 +152,63 @@ class LdapConnection(ldapom.LdapConnection):
 
 class LdapConfigConnection(ldapom.LdapConnection):
 
-    def __init__(self):
+    def __init__(self, type, uri, login, password, certfile = None):
+        # The LDAP server type
+        self.type = type
         # Get LDAP connection configuration
-        self._default_base = "cn=config";
-        import ldap.sasl
-        ldapom.LdapConnection.__init__(self, "ldapi:///",
-            base = self._default_base, login = "", password = "",
-            certfile = None, sasl = ("", ldap.sasl.external()))
+        self._default_base = "cn=config"
+        self._schema_base = "cn=schema,cn=config"
+        if self.type == "389DS":
+            self._schema_base = "cn=schema"
+        if uri.startswith("ldapi://"):
+            import ldap.sasl
+            sasl = ("", ldap.sasl.external())
+        else:
+            sasl = None
+        ldapom.LdapConnection.__init__(self, uri, base = self._default_base, 
+                                       login = login, password = password, 
+                                       certfile = certfile, sasl = sasl)
 
-    def getSchema(self, cn):
-        for schema in self.search("(cn=*%s)" % cn, base = "cn=schema,cn=config"):
-            return schema
-        raise SchemaDoesNotExist()
+    def changeBase(self, base):
+        """
+        Change the LDAP base of this connexion
+        """
+        self._base = base
+
+    def hasObjectClass(self, objectClass):
+        self.changeBase(self._schema_base)
+        if self.type == "OpenLDAP":
+            attr = "olcObjectClasses"
+        if self.type == "389DS":
+            attr = "objectClasses"
+        for schema in self.search("(objectClass=*)", [attr]):
+            for objCls in schema.__getattr__(attr):
+                if "NAME '%s'" % objectClass in objCls:
+                    return True
+        return False
 
     # Not supported by OL 2.4
     #def removeSchema(self, cn):
     #    schema = self.getSchema(cn)
     #    schema.delete()
 
-    def addSchema(self, ldif):
-        os.stat(ldif)
+    def addSchema(self, schema_path, schema):
+        self.changeBase(self._schema_base)
+        schema = os.path.join(schema_path, '%s.ldif.%s' % (schema, self.type))
+        os.stat(schema)
         class Parser(LDIFParser):
             def __init__(self, ldif, conn):
                 LDIFParser.__init__(self, ldif)
-                self._conn = conn
+                self._conn = conn        
             def handle(self, dn, entry):
-                schema = self._conn.new_ldap_node(dn)
+                if self._conn.type == "OpenLDAP":
+                    schema = self._conn.new_ldap_node(dn)
+                if self._conn.type == "389DS":
+                    schema = self._conn.retrieve_ldap_node(self._conn._base)
                 for attr, value in entry.iteritems():
                     schema.__setattr__(attr, value)
                 schema.save()
-        p = Parser(open(ldif, 'rb'), self)
+        p = Parser(open(schema, 'rb'), self)
         p.parse()
 
 
@@ -195,7 +222,4 @@ class DNDoesNotExists(LdapConnectionError):
     pass
 
 class LdapConfigConnectionError(Exception):
-    pass
-
-class SchemaDoesNotExist(LdapConfigConnectionError):
     pass

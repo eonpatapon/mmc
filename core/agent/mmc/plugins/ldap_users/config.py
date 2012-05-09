@@ -33,11 +33,16 @@ class LdapUsersConfig(PluginConfig):
     # UserManager backend name
     backend_name = "LDAP Users"
     # LDAP configuration
+    type = 'OpenLDAP'
     uri = 'ldap://127.0.0.1:389'
     base = 'dc=mandriva,dc=com'
     login = 'cn=admin,dc=mandriva,dc=com'
     password = 'secret'
     certfile = None
+    # LDAP config backend
+    config_uri = 'ldapi:///'
+    config_login = ''
+    config_password = ''
     # Users
     users_ou = 'People'
     groups_ou = 'Group'
@@ -56,19 +61,28 @@ class LdapUsersConfig(PluginConfig):
         """
 
         try:
+            self.type = self.get("ldap", "type")
+        except:
+            pass
+        if self.type not in ['OpenLDAP', '389DS']:
+            raise LdapUsersConfigError("LDAP server type must be 'OpenLDAP' or \
+                                        '389DS' (without quotes)")
+        try:
             self.uri = self.get("ldap", "uri")
         except:
             pass
         try:
             self.base = self.getdn("ldap", "base")
         except ldap.LDAPError:
-            raise LdapUsersConfigError("Wrong DN syntax : %s" % self.get("ldap", "base"))
+            raise LdapUsersConfigError("Wrong DN syntax : %s" % \
+                                       self.get("ldap", "base"))
         except:
             pass
         try:
             self.login = self.getdn("ldap", "login")
         except ldap.LDAPError:
-            raise LdapUsersConfigError("Wrong DN syntax : %s" % self.get("ldap", "login"))
+            raise LdapUsersConfigError("Wrong DN syntax : %s" % \
+                                       self.get("ldap", "login"))
         except:
             pass
         try:
@@ -80,11 +94,30 @@ class LdapUsersConfig(PluginConfig):
         except:
             pass
         try:
-            self.users_ou = self.get("users", "usersOU")
+            self.users_ou = self.get("ldap", "usersOU")
         except:
             pass
         try:
-            self.groups_ou = self.get("users", "groupsOU")
+            self.groups_ou = self.get("ldap", "groupsOU")
+        except:
+            pass
+        try:
+            self.config_uri = self.get("ldap_config", "uri")
+        except:
+            pass
+        try:
+            self.config_login = self.getdn("ldap_config", "login")
+        except ldap.LDAPError:
+            raise LdapUsersConfigError("Wrong DN syntax : %s" % \
+                                       self.get("ldap_config", "login"))
+        except:
+            pass
+        try:
+            self.config_password = self.get("ldap_config", "password")
+        except:
+            pass
+        try:
+            self.backend_name = self.get("users", "name")
         except:
             pass
         try:
@@ -112,7 +145,8 @@ class LdapUsersConfig(PluginConfig):
         except:
             pass
         try:
-            self.authorized_base_home_dir = self.get("posix", "authorizedBaseHomeDir").replace(' ','').split(',')
+            self.authorized_base_home_dir = self.get("posix", \
+                            "authorizedBaseHomeDir").replace(' ','').split(',')
         except:
             pass
         try:

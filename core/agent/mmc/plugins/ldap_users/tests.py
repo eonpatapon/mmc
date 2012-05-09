@@ -3,8 +3,6 @@
 # (c) 2004-2007 Linbox / Free&ALter Soft, http://linbox.com
 # (c) 2007-2012 Mandriva, http://www.mandriva.com/
 #
-# $Id$
-#
 # This file is part of Mandriva Management Console (MMC).
 #
 # MMC is free software; you can redistribute it and/or modify
@@ -23,12 +21,15 @@
 
 import unittest
 
+from mmc.support.config import PluginConfigFactory
+from mmc.plugins.ldap_users.config import LdapUsersConfig
 from mmc.plugins.ldap_users import LdapUsers, PosixUsers, UserDoesNotExists, \
                                    LdapGroups
 
 class TestUsersGroups(unittest.TestCase):
 
     def setUp(self):
+        self.config = PluginConfigFactory.new(LdapUsersConfig, "ldap_users")
         self.groups = LdapGroups()
         self.groups_ou = self.groups.addOU("groups_test")
         self.groups.changeBase(self.groups_ou._dn)
@@ -64,7 +65,10 @@ class TestUsersGroups(unittest.TestCase):
     def testAddDelGroup(self):
         g = self.groups.addOne("group", {'description': 'Test group', 
                                          'bad_attr': False })
-        self.assertEqual(list(g.objectClass), [u'namedObject', u'posixGroup'])
+        if self.config.type == "OpenLDAP":
+            self.assertEqual(list(g.objectClass), [u'namedObject', u'posixGroup', u'top'])
+        if self.config.type == "389DS":
+            self.assertEqual(list(g.objectClass), [u'groupOfUniqueNames', u'posixGroup', u'top'])
         self.assertEqual(str(g.gidNumber), "10000")
         self.assertEqual(str(g.description), 'Test group')
         self.assertRaises(AttributeError, g.__getattr__, 'bad_attr')
@@ -75,13 +79,16 @@ class TestUsersGroups(unittest.TestCase):
         self.groups.addOne("group")
         self.users.addOne(None, "user", "pasééù", {'givenName': 'Test user'})
         g = self.groups.addUser("group", "user")
-        self.assertEqual(list(g.objectClass), [u'groupOfNames', u'posixGroup'])
+        self.assertEqual(list(g.objectClass), [u'groupOfUniqueNames', u'posixGroup', u'top'])
         self.assertEqual(str(g.memberUid), 'user')
-        self.assertEqual(str(g.member), 'uid=user,ou=users_tests,ou=People,dc=mandriva,dc=com')
+        self.assertEqual(str(g.uniqueMember), 'uid=user,ou=users_tests,ou=People,dc=mandriva,dc=com')
         g = self.groups.removeUser("group", "user")
-        self.assertEqual(list(g.objectClass), [u'namedObject', u'posixGroup'])
+        if self.config.type == "OpenLDAP":
+            self.assertEqual(list(g.objectClass), [u'namedObject', u'posixGroup', u'top'])
+        if self.config.type == "389DS":
+            self.assertEqual(list(g.objectClass), [u'groupOfUniqueNames', u'posixGroup', u'top'])
         self.assertRaises(AttributeError, g.__getattr__, 'memberUid')
-        self.assertRaises(AttributeError, g.__getattr__, 'member')
+        self.assertRaises(AttributeError, g.__getattr__, 'uniqueMember')
 
     def testAddWithNonExistantMember(self):
         self.groups.addOne("group", {'description': 'test group'})
@@ -93,16 +100,16 @@ class TestUsersGroups(unittest.TestCase):
         self.groups.addOne("group1", {'description': 'Test group 1 héhé'})
         self.groups.addUser("group1", "user1")
         g = self.groups.addUser("group1", "user2")
-        self.assertEqual(list(g.member), [u'uid=user1,ou=users_tests,ou=People,dc=mandriva,dc=com', u'uid=user2,ou=users_tests,ou=People,dc=mandriva,dc=com'])
+        self.assertEqual(list(g.uniqueMember), [u'uid=user1,ou=users_tests,ou=People,dc=mandriva,dc=com', u'uid=user2,ou=users_tests,ou=People,dc=mandriva,dc=com'])
         self.assertEqual(list(g.memberUid), [u'user1', u'user2'])
         self.groups.addOne("group2", {'description': 'Test group 2'})
         self.groups.addUser("group2", "user1")
         self.groups.removeUserFromAll("user1")
         g = self.groups.getOne('group1')
-        self.assertEqual(list(g.member), [u'uid=user2,ou=users_tests,ou=People,dc=mandriva,dc=com'])
+        self.assertEqual(list(g.uniqueMember), [u'uid=user2,ou=users_tests,ou=People,dc=mandriva,dc=com'])
         self.assertEqual(list(g.memberUid), [u'user2'])
         g = self.groups.getOne('group2')
-        self.assertRaises(AttributeError, g.__getattr__, 'member')
+        self.assertRaises(AttributeError, g.__getattr__, 'uniqueMember')
         self.assertRaises(AttributeError, g.__getattr__, 'memberUid')
 
     def testGetuserGroups(self):
@@ -131,7 +138,7 @@ class TestUsersGroups(unittest.TestCase):
         self.assertEqual(str(u.gidNumber), "10000")
         self.assertEqual(str(u.gecos), "Test user 2 Eau")
         u = self.posix_users.removeAttributes("user2")
-        self.assertEqual(list(u.objectClass), [u'top', u'person', u'inetOrgPerson', u'lmcUserObject'])
+        self.assertEqual(list(u.objectClass), [u'top', u'person', u'inetOrgPerson', u'organizationalPerson'])
         self.assertRaises(AttributeError, u.__getattr__, "uidNumber")
 
     def tearDown(self):

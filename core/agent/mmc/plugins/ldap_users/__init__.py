@@ -3,8 +3,6 @@
 # (c) 2004-2007 Linbox / Free&ALter Soft, http://linbox.com
 # (c) 2007-2012 Mandriva, http://www.mandriva.com/
 #
-# $Id$
-#
 # This file is part of Mandriva Management Console (MMC).
 #
 # MMC is free software; you can redistribute it and/or modify
@@ -55,34 +53,49 @@ logger = logging.getLogger()
 def activate():
     config = PluginConfigFactory.new(LdapUsersConfig, "ldap_users")
     # Check LDAP credentials
+    logger.debug("Checking LDAP credentials")
     try:
-        conn = LdapConnection(config.uri, config.base, config.login,
+        Ldap = LdapConnection(config.uri, config.base, config.login,
                               config.password, config.certfile)
     except ldap.INVALID_CREDENTIALS:
         logger.error("Can't bind to LDAP: invalid credentials.")
         return False
     # Check and load necessary schemas in LDAP
+    logger.debug("Checking LDAP schemas")
+    schemas = os.path.join(datadir, 'doc', 'python-mmc-users', 'contrib')
     try:
-        schemas = os.path.join(datadir, 'doc', 'python-mmc-users', 'contrib')
-        LdapConfig = LdapConfigConnection()
-        if not LdapConfig.getSchema('mmc'):
-            LdapConfig.addSchema(os.path.join(schemas, 'mmc.ldif'))
-        if not LdapConfig.getSchema('rfc2307bis'):
-            LdapConfig.addSchema(os.path.join(schemas, 'rfc2307bis.ldif'))
+        LdapConfig = LdapConfigConnection(config.type, config.config_uri,
+                                          config.config_login, config.config_password)
+        if not LdapConfig.hasObjectClass('lmcUserObject'):
+            LdapConfig.addSchema(schemas, 'mmc')
+            logger.info("MMC schema loaded in the LDAP directory.")
+        if config.type == "OpenLDAP":
+            if not LdapConfig.hasObjectClass('namedObject'):
+                LdapConfig.addSchema(schemas, 'rfc2307bis')
+                logger.info("rfc2307bis schema loaded in the LDAP directory.")
     except:
-        logger.warning("Can't access LDAP cn=config database.")
+        logger.warning("Can't access LDAP cn=config database. Using cn=schema.")
         try:
-            schema = conn.getSchema("lmcUserObject")
+            schema = Ldap.getSchema("lmcUserObject")
             if len(schema) <= 0:
-                logger.error("MMC schema seems not be include in LDAP directory.")
+                logger.error("MMC schema seems not included in the LDAP directory.")
+                logger.error("The schema can be found in %s" % schemas)
                 return False
+            if config.type == "OpenLDAP":
+                schema = Ldap.getSchema("namedObject")
+                if len(schema) <= 0:
+                    logger.error("rfc2307bis schema seems not included in the LDAP directory.")
+                    logger.error("The schema can be found in %s" % schemas)
+                    return False
         except:
             logger.error("Invalid MMC schema.")
+            return False
+    logger.debug("LDAP schemas are ok.")
     # Create required OUs
     ous = [ config.users_ou, config.groups_ou ]
     for ou in ous:
-        if not conn.getOU(ou):
-            conn.addOU(ou)
+        if not Ldap.getOU(ou):
+            Ldap.addOU(ou)
     # Create the default group
     groups = LdapGroups()
     try:
@@ -111,7 +124,7 @@ class LdapUsers(LdapConnection, UserI):
     classes = ['top',
                'person',
                'inetOrgPerson',
-               'lmcUserObject']
+               'organizationalPerson']
     attrs = ['uid',
              'userPassword',
              'jpegPhoto',
@@ -124,8 +137,7 @@ class LdapUsers(LdapConnection, UserI):
              'mobile', # Mobile phone
              'facsimileTelephoneNumber', # Fax
              'homePhone',
-             'homePostalAddress',
-             'lmcACL']
+             'homePostalAddress']
 
     def __init__(self):
         self.config = PluginConfigFactory.new(LdapUsersConfig, "ldap_users")
@@ -142,7 +154,10 @@ class LdapUsers(LdapConnection, UserI):
         for user in self.search('uid=%s' % uid):
             return user
         if uid == "root":
-            return self.retrieve_ldap_node(self._login)
+            if self.config.type == "OpenLDAP":
+                return self.retrieve_ldap_node(self._login)
+            if self.config.type == "389DS":
+                return self._login
         raise UserDoesNotExists()
 
     def getACL(self, ctx, uid):
@@ -232,7 +247,7 @@ class LdapUsers(LdapConnection, UserI):
         user = self.getOne(ctx, uid)
         groups = []
         for group in LdapGroups().getAll():
-            if 'member' in group and str(user) in group.member:
+            if 'uniqueMember' in group and str(user) in group.uniqueMember:
                 groups.append(group)
 
         return groups
@@ -452,7 +467,7 @@ class LdapGroups(LdapConnection):
 
     attrs = ['cn',
              'description',
-             'member',
+             'uniqueMember',
              'gidNumber',
              'memberUid']
 
@@ -493,7 +508,10 @@ class LdapGroups(LdapConnection):
         except GroupDoesNotExists:
             # Create the group
             group = self.new_ldap_node('cn=%s,%s' % (cn, base))
-            group.objectClass = ['namedObject', 'posixGroup']
+            if self.config.type == "389DS":
+                group.objectClass = ['groupOfUniqueNames', 'posixGroup', 'top']
+            else:
+                group.objectClass = ['namedObject', 'posixGroup', 'top']
             group.cn = cn
             if 'description' in attrs:
                 group.description = attrs['description']
@@ -516,6 +534,15 @@ class LdapGroups(LdapConnection):
         gidNumber += 1
         return str(gidNumber)
 
+    def _isEmpty(self, group):
+        """
+        Returns true if the group has no members
+        """
+        if not 'uniqueMember' in group and not 'memberUid' in group:
+            return True
+
+        return False
+
     def addUser(self, cn, uid):
         """
         Add a user to a group
@@ -527,10 +554,10 @@ class LdapGroups(LdapConnection):
                      AA.USERS_ADD_USER_TO_GROUP,
                      [(str(group.cn), AT.GROUP), (str(user.uid), AT.USER)])
 
-        # There is no members
-        if not 'groupOfNames' in group.objectClass:
+        # OpenLDAP // No Members 
+        if self.config.type == "OpenLDAP" and self._isEmpty(group):
             # We need to delete the group and recreate it
-            # for changing the structural ObjectClass to groupOfNames
+            # for changing the structural ObjectClass to groupOfUniqueNames
             dn = str(group)
             cn = str(group.cn)
             if 'description' in group:
@@ -540,17 +567,22 @@ class LdapGroups(LdapConnection):
             gidNumber = str(group.gidNumber)
             group.delete()
             group = self.new_ldap_node(dn) 
-            group.objectClass = ['groupOfNames', 'posixGroup']
+            group.objectClass = ['groupOfUniqueNames', 'posixGroup', 'top']
             group.cn = cn
             if description:
                 group.description = description
             group.gidNumber = gidNumber
-            group.member = str(user)
+            group.uniqueMember = str(user)
             group.memberUid = str(user.uid)
-
             group.save()
+        # 389DS // No Members
+        elif self.config.type == "389DS" and self._isEmpty(group):
+            group.uniqueMember = str(user)
+            group.memberUid = str(user.uid)
+            group.save()
+        # We already have some members
         else:
-            group.member.append(str(user))
+            group.uniqueMember.append(str(user))
             group.memberUid.append(str(user.uid))
             group.save()
 
@@ -565,15 +597,19 @@ class LdapGroups(LdapConnection):
         user = LdapUsers().getOne(None, uid)
         group = self.getOne(cn)
 
-        if 'groupOfNames' in group.objectClass:
+        # Is there members in that group ?
+        if not self._isEmpty(group):
             r = AF().log(PLUGIN_NAME,
                          AA.USERS_DEL_USER_FROM_GROUP,
                          [(str(group.cn), AT.GROUP), (str(user.uid), AT.USER)])
-            group.member.remove(str(user))
-            group.memberUid.remove(str(user.uid))
+            if 'uniqueMember' in group:
+                group.uniqueMember.remove(str(user))
+            if 'memberUid' in group:
+                group.memberUid.remove(str(user.uid))
+            # OpenLDAP
             # No more members switch back to namedObject
             # structural objectClass
-            if len(group.member) == 0:
+            if self.config.type == "OpenLDAP" and len(group.uniqueMember) == 0:
                 dn = str(group)
                 cn = str(group.cn)
                 if 'description' in group:
@@ -583,13 +619,15 @@ class LdapGroups(LdapConnection):
                 gidNumber = str(group.gidNumber)
                 group.delete()
                 group = self.new_ldap_node(dn) 
-                group.objectClass = ['namedObject', 'posixGroup']
+                group.objectClass = ['namedObject', 'posixGroup', 'top']
                 group.cn = cn
                 if description:
                     group.description = description
                 group.gidNumber = gidNumber
             # Save the group
             group.save()
+            # FIXME Members not correctly updated in the object with 389DS
+            group.retrieve_attributes()
             r.commit()
         
         return group

@@ -31,7 +31,7 @@
 import ldap
 import ldif
 
-LDAPOM_VERBOSE = True
+LDAPOM_VERBOSE = False
 
 def _encode_utf8(str):
     """
@@ -144,8 +144,8 @@ class LdapConnection(object):
         """
         Connect to ldap-server
         """
+        ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
         if self._certfile:
-            ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
             ldap.set_option(ldap.OPT_X_TLS_CACERTFILE, self._certfile)
         self._lo = ldap.initialize(self._uri)
         #self._lo.set_option(ldap.OPT_X_TLS_DEMAND, False)

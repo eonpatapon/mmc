@@ -20,5 +20,6 @@
 #
 
 plugincontribdir = $(datarootdir)/doc/python-mmc-users/contrib/
-dist_plugincontrib_DATA = contrib/mmc.schema contrib/mmc.ldif \
-				          contrib/rfc2307bis.schema contrib/rfc2307bis.ldif
+dist_plugincontrib_DATA = contrib/mmc.schema contrib/mmc.ldif.389DS \
+			contrib/mmc.ldif.OpenLDAP contrib/rfc2307bis.schema \
+			contrib/rfc2307bis.ldif.OpenLDAP
