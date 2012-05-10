@@ -27,7 +27,7 @@ import ldap
 import ldap.dn
 import logging
 import os.path
-from mmc.site import datadir 
+from mmc.site import datadir
 from mmc.core.version import scmRevision
 from mmc.core.ldapconn import LdapConnection, LdapConfigConnection
 from mmc.core.audit import AuditFactory as AF
@@ -110,7 +110,7 @@ def activate_2():
     config = PluginConfigFactory.new(LdapUsersConfig, "ldap_users")
     UserManager().register(config.backend_name, LdapUsers)
     UserManager().select(config.backend_name)
-    
+
     AuthenticationManager().register("ldap", LdapUsersAuthenticator)
 
     return True
@@ -151,8 +151,14 @@ class LdapUsers(LdapConnection, UserI):
         """
         Get user from the directory
         """
+        # If uid is already an LdapNode
+        # return it directly
+        if isinstance(uid, ldapom.LdapNode):
+            return uid
+        # Search the user
         for user in self.search('uid=%s' % uid):
             return user
+        # Handle the special admin login
         if uid == "root":
             if self.config.type == "OpenLDAP":
                 return self.retrieve_ldap_node(self._login)
@@ -228,7 +234,7 @@ class LdapUsers(LdapConnection, UserI):
             user.save()
             r.commit()
             # Set the password
-            self.changePassword(ctx, str(user.uid), password)
+            self.changePassword(ctx, user, password)
             # Run hooks
             self.runHook("users.adduser", uid, password)
 
@@ -337,7 +343,7 @@ class LdapUsers(LdapConnection, UserI):
 
         user = self.getOne(ctx, uid)
         # Remove the user from all groups
-        LdapGroups().removeUserFromAll(user.uid)
+        LdapGroups().removeUserFromAll(user)
         # Finally delete the user
         user.delete()
 
@@ -368,14 +374,14 @@ class PosixUsers(LdapUsers):
             if not 'homeDirectory' in attrs:
                 attrs['homeDirectory'] = self._getHomeDir(uid, check_exists = True)
             else:
-                attrs['homeDirectory'] = self._getHomeDir(uid, 
+                attrs['homeDirectory'] = self._getHomeDir(uid,
                                                           attrs['homeDirectory'],
                                                           True)
             if not 'loginShell' in attrs:
                 attrs['loginShell'] = self.config.login_shell
-            
+
             attrs['uidNumber'] = self._getUID()
-            
+
             if not 'primaryGroup' in attrs:
                 attrs['primaryGroup'] = self.config.default_group
             attrs['gidNumber'] = self._getGID(attrs['primaryGroup'])
@@ -482,6 +488,11 @@ class LdapGroups(LdapConnection):
         """
         Get group from the directory
         """
+        # If cn is already an LdapNode
+        # return it directly
+        if isinstance(cn, ldapom.LdapNode):
+            return cn
+        # Search the group
         for group in self.search('cn=%s' % cn):
             return group
         raise GroupDoesNotExists()
@@ -549,12 +560,12 @@ class LdapGroups(LdapConnection):
         """
         user = LdapUsers().getOne(None, uid)
         group = self.getOne(cn)
-                
+
         r = AF().log(PLUGIN_NAME,
                      AA.USERS_ADD_USER_TO_GROUP,
                      [(str(group.cn), AT.GROUP), (str(user.uid), AT.USER)])
 
-        # OpenLDAP // No Members 
+        # OpenLDAP // No Members
         if self.config.type == "OpenLDAP" and self._isEmpty(group):
             # We need to delete the group and recreate it
             # for changing the structural ObjectClass to groupOfUniqueNames
@@ -566,7 +577,7 @@ class LdapGroups(LdapConnection):
                 description = False
             gidNumber = str(group.gidNumber)
             group.delete()
-            group = self.new_ldap_node(dn) 
+            group = self.new_ldap_node(dn)
             group.objectClass = ['groupOfUniqueNames', 'posixGroup', 'top']
             group.cn = cn
             if description:
@@ -618,7 +629,7 @@ class LdapGroups(LdapConnection):
                     description = False
                 gidNumber = str(group.gidNumber)
                 group.delete()
-                group = self.new_ldap_node(dn) 
+                group = self.new_ldap_node(dn)
                 group.objectClass = ['namedObject', 'posixGroup', 'top']
                 group.cn = cn
                 if description:
@@ -629,7 +640,7 @@ class LdapGroups(LdapConnection):
             # FIXME Members not correctly updated in the object with 389DS
             group.retrieve_attributes()
             r.commit()
-        
+
         return group
 
     def removeUserFromAll(self, uid):
@@ -643,7 +654,7 @@ class LdapGroups(LdapConnection):
                      [("", AT.GROUP), (str(user.uid), AT.USER)])
 
         for group in self.getAll():
-            self.removeUser(str(group.cn), str(user.uid))
+            self.removeUser(group, user)
 
         r.commit()
         return True
