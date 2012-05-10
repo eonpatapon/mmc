@@ -63,8 +63,8 @@ class TestUsersGroups(unittest.TestCase):
         self.assertTrue(u.check_password('pouetéé'))
 
     def testAddDelGroup(self):
-        g = self.groups.addOne("group", {'description': 'Test group', 
-                                         'bad_attr': False })
+        g = self.groups.addOne(None, "group", {'description': 'Test group', 
+                                               'bad_attr': False })
         if self.config.type == "OpenLDAP":
             self.assertEqual(list(g.objectClass), [u'namedObject', u'posixGroup', u'top'])
         if self.config.type == "389DS":
@@ -72,17 +72,17 @@ class TestUsersGroups(unittest.TestCase):
         self.assertEqual(str(g.gidNumber), "10000")
         self.assertEqual(str(g.description), 'Test group')
         self.assertRaises(AttributeError, g.__getattr__, 'bad_attr')
-        self.groups.removeOne('group')
+        self.groups.removeOne(None, 'group')
         self.assertFalse(self.groups.check_if_dn_exists(g._dn))
 
     def testAddDelGroupUser(self):
-        self.groups.addOne("group")
+        self.groups.addOne(None, "group")
         self.users.addOne(None, "user", "pasééù", {'givenName': 'Test user'})
-        g = self.groups.addUser("group", "user")
+        g = self.groups.addUser(None, "group", "user")
         self.assertEqual(list(g.objectClass), [u'groupOfUniqueNames', u'posixGroup', u'top'])
         self.assertEqual(str(g.memberUid), 'user')
         self.assertEqual(str(g.uniqueMember), 'uid=user,ou=users_tests,ou=People,dc=mandriva,dc=com')
-        g = self.groups.removeUser("group", "user")
+        g = self.groups.removeUser(None, "group", "user")
         if self.config.type == "OpenLDAP":
             self.assertEqual(list(g.objectClass), [u'namedObject', u'posixGroup', u'top'])
         if self.config.type == "389DS":
@@ -91,33 +91,33 @@ class TestUsersGroups(unittest.TestCase):
         self.assertRaises(AttributeError, g.__getattr__, 'uniqueMember')
 
     def testAddWithNonExistantMember(self):
-        self.groups.addOne("group", {'description': 'test group'})
-        self.assertRaises(UserDoesNotExists, self.groups.addUser, "group", "user")
+        self.groups.addOne(None, "group", {'description': 'test group'})
+        self.assertRaises(UserDoesNotExists, self.groups.addUser, None, "group", "user")
 
     def testRemoveUserFromAll(self):
         self.users.addOne(None, "user1", "pasééù", {'givenName': 'Test user 1'})
         self.users.addOne(None, "user2", "pasééù", {'givenName': 'Test user 2'})
-        self.groups.addOne("group1", {'description': 'Test group 1 héhé'})
-        self.groups.addUser("group1", "user1")
-        g = self.groups.addUser("group1", "user2")
+        self.groups.addOne(None, "group1", {'description': 'Test group 1 héhé'})
+        self.groups.addUser(None, "group1", "user1")
+        g = self.groups.addUser(None, "group1", "user2")
         self.assertEqual(list(g.uniqueMember), [u'uid=user1,ou=users_tests,ou=People,dc=mandriva,dc=com', u'uid=user2,ou=users_tests,ou=People,dc=mandriva,dc=com'])
         self.assertEqual(list(g.memberUid), [u'user1', u'user2'])
-        self.groups.addOne("group2", {'description': 'Test group 2'})
-        self.groups.addUser("group2", "user1")
-        self.groups.removeUserFromAll("user1")
-        g = self.groups.getOne('group1')
+        self.groups.addOne(None, "group2", {'description': 'Test group 2'})
+        self.groups.addUser(None, "group2", "user1")
+        self.groups.removeUserFromAll(None, "user1")
+        g = self.groups.getOne(None, 'group1')
         self.assertEqual(list(g.uniqueMember), [u'uid=user2,ou=users_tests,ou=People,dc=mandriva,dc=com'])
         self.assertEqual(list(g.memberUid), [u'user2'])
-        g = self.groups.getOne('group2')
+        g = self.groups.getOne(None, 'group2')
         self.assertRaises(AttributeError, g.__getattr__, 'uniqueMember')
         self.assertRaises(AttributeError, g.__getattr__, 'memberUid')
 
     def testGetuserGroups(self):
         self.users.addOne(None, "user1", "pasééù", {'givenName': 'Test user 1'})
-        self.groups.addOne("group1", {'description': 'Test group 1'})
-        self.groups.addOne("group2", {'description': 'Test group 1'})
-        self.groups.addUser("group1", "user1")
-        self.groups.addUser("group2", "user1")
+        self.groups.addOne(None, "group1", {'description': 'Test group 1'})
+        self.groups.addOne(None, "group2", {'description': 'Test group 1'})
+        self.groups.addUser(None, "group1", "user1")
+        self.groups.addUser(None, "group2", "user1")
         groups = self.users.getGroups(None, "user1")
         self.assertEqual(str(groups[0].cn), "group1")
         self.assertEqual(str(groups[1].cn), "group2")
@@ -125,9 +125,9 @@ class TestUsersGroups(unittest.TestCase):
     def testAddRemovePosixAttributes(self):
         self.users.addOne(None, "user1", "pasééù", {'givenName': 'Test user 1'})
         self.users.addOne(None, "user2", "pasééù", {'givenName': 'Test user 2', 'sn': "Éàù"})
-        g = self.groups.addOne("group1", {'description': 'Test group 1'})
+        g = self.groups.addOne(None, "group1", {'description': 'Test group 1'})
         self.assertEqual(str(g.gidNumber), "10000")
-        g = self.groups.addOne("group2", {'description': 'Test group 2'})
+        g = self.groups.addOne(None, "group2", {'description': 'Test group 2'})
         self.assertEqual(str(g.gidNumber), "10001")
         u = self.posix_users.addAttributes("user1", "", {"primaryGroup": "group1"})
         self.assertEqual(str(u.uidNumber), "10000")

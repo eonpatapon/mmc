@@ -31,7 +31,7 @@ from mmc.site import datadir
 from mmc.core.version import scmRevision
 from mmc.core.ldapconn import LdapConnection, LdapConfigConnection
 from mmc.core.audit import AuditFactory as AF
-from mmc.core.users import UserManager, UserI
+from mmc.core.users import UserManager, UserI, GroupI
 from mmc.core.auth import AuthenticationManager
 from mmc.support import ldapom
 from mmc.support.config import PluginConfigFactory
@@ -99,7 +99,7 @@ def activate():
     # Create the default group
     groups = LdapGroups()
     try:
-        groups.addOne(config.default_group)
+        groups.addOne(None, config.default_group)
         logger.info("Default user group %s created." % config.default_group)
     except GroupAlreadyExists:
         pass
@@ -108,7 +108,7 @@ def activate():
 
 def activate_2():
     config = PluginConfigFactory.new(LdapUsersConfig, "ldap_users")
-    UserManager().register(config.backend_name, LdapUsers)
+    UserManager().register(config.backend_name, LdapUsers, LdapGroups)
     UserManager().select(config.backend_name)
 
     AuthenticationManager().register("ldap", LdapUsersAuthenticator)
@@ -186,9 +186,9 @@ class LdapUsers(LdapConnection, UserI):
             (search, search, search, search, search)
         return list(self.search(filter, base=base))
 
-    def canAddBase(self, ctx):
+    def canManageBases(self, ctx):
         """
-        Is the connected user allowed to add user OUs
+        Is the connected user allowed to add/remove user OUs
         """
         return True
 
@@ -197,10 +197,25 @@ class LdapUsers(LdapConnection, UserI):
         Add an OU for users
         """
         r = AF().log(PLUGIN_NAME, AA.USERS_ADD_USER_OU, [(name, AT.ORGANIZATIONAL_UNIT)])
-        ou = LdapConnection.addOU(self, name, base)
+        ou = self.addOU(self, name, base)
         r.commit()
 
         return ou
+
+    def removeBase(self, ctx, name, recursive = False):
+        """
+        Add an OU for users
+        """
+        r = AF().log(PLUGIN_NAME, AA.USERS_DEL_USER_OU, [(name, AT.ORGANIZATIONAL_UNIT)])
+        ou = self.getOU(name)
+        if ou:
+            if recursive:
+                self.delete_r(str(ou))
+            else:
+                self.delete(str(ou))
+            r.commit()
+
+        return True
 
     def canAddOne(self, ctx):
         """
@@ -252,7 +267,7 @@ class LdapUsers(LdapConnection, UserI):
         """
         user = self.getOne(ctx, uid)
         groups = []
-        for group in LdapGroups().getAll():
+        for group in LdapGroups().getAll(ctx):
             if 'uniqueMember' in group and str(user) in group.uniqueMember:
                 groups.append(group)
 
@@ -343,7 +358,7 @@ class LdapUsers(LdapConnection, UserI):
 
         user = self.getOne(ctx, uid)
         # Remove the user from all groups
-        LdapGroups().removeUserFromAll(user)
+        LdapGroups().removeUserFromAll(ctx, user)
         # Finally delete the user
         user.delete()
 
@@ -351,6 +366,7 @@ class LdapUsers(LdapConnection, UserI):
         self.runHook("users.removeuser", uid)
 
         r.commit()
+        return True
 
 
 class PosixUsers(LdapUsers):
@@ -433,7 +449,7 @@ class PosixUsers(LdapUsers):
         return str(uidNumber)
 
     def _getGID(self, group):
-        return str(LdapGroups().getOne(group).gidNumber)
+        return str(LdapGroups().getOne(None, group).gidNumber)
 
     def _getHomeDir(self, uid, home_dir = None, check_exists = True):
         """
@@ -466,7 +482,7 @@ class PosixUsers(LdapUsers):
 
         return self._changeUserAttribute(user, attr, value, log)
 
-class LdapGroups(LdapConnection):
+class LdapGroups(LdapConnection, GroupI):
 
     audit_plugin_name = PLUGIN_NAME
     audit_mod_attr = AA.USERS_MOD_GROUP_ATTR
@@ -484,7 +500,16 @@ class LdapGroups(LdapConnection):
                                 self.config.certfile)
         self.changeBase(str(self.getOU(self.config.groups_ou)))
 
-    def getOne(self, cn):
+    def canAdd(self, ctx):
+        return True
+
+    def canEdit(self, ctx):
+        return True
+
+    def canRemove(self, ctx):
+        return True
+
+    def getOne(self, ctx, cn):
         """
         Get group from the directory
         """
@@ -497,7 +522,7 @@ class LdapGroups(LdapConnection):
             return group
         raise GroupDoesNotExists()
 
-    def getAll(self, search = "*", base = None):
+    def getAll(self, ctx, search = "*", base = None):
         """
         Return the list of groups below the base
         """
@@ -505,7 +530,7 @@ class LdapGroups(LdapConnection):
         filter = "(|(cn=%s)(description=%s))" % (search, search)
         return list(self.search(filter, base=base))
 
-    def addOne(self, cn, attrs = {}, base = None):
+    def addOne(self, ctx, cn, attrs = {}, base = None):
         """
         Add posixGroup group to base
         """
@@ -514,7 +539,7 @@ class LdapGroups(LdapConnection):
         r = AF().log(PLUGIN_NAME, AA.USERS_ADD_GROUP, [(cn, AT.GROUP)])
 
         try:
-            group = self.getOne(cn)
+            group = self.getOne(ctx, cn)
             raise GroupAlreadyExists()
         except GroupDoesNotExists:
             # Create the group
@@ -526,7 +551,7 @@ class LdapGroups(LdapConnection):
             group.cn = cn
             if 'description' in attrs:
                 group.description = attrs['description']
-            group.gidNumber = self._getGID()
+            group.gidNumber = self._getGID(ctx)
             group.save()
             r.commit()
             # Run hooks
@@ -534,12 +559,12 @@ class LdapGroups(LdapConnection):
 
             return group
 
-    def _getGID(self):
+    def _getGID(self, ctx):
         """
         Get next free gidNumber
         """
         gidNumber = self.config.gid_start - 1
-        for group in self.getAll():
+        for group in self.getAll(ctx):
             if 'gidNumber' in group and int(str(group.gidNumber)) > gidNumber:
                     gidNumber = int(str(group.gidNumber))
         gidNumber += 1
@@ -554,12 +579,12 @@ class LdapGroups(LdapConnection):
 
         return False
 
-    def addUser(self, cn, uid):
+    def addUser(self, ctx, cn, uid):
         """
         Add a user to a group
         """
-        user = LdapUsers().getOne(None, uid)
-        group = self.getOne(cn)
+        user = LdapUsers().getOne(ctx, uid)
+        group = self.getOne(ctx, cn)
 
         r = AF().log(PLUGIN_NAME,
                      AA.USERS_ADD_USER_TO_GROUP,
@@ -601,12 +626,12 @@ class LdapGroups(LdapConnection):
 
         return group
 
-    def removeUser(self, cn, uid):
+    def removeUser(self, ctx, cn, uid):
         """
         Remove a user from a group
         """
-        user = LdapUsers().getOne(None, uid)
-        group = self.getOne(cn)
+        user = LdapUsers().getOne(ctx, uid)
+        group = self.getOne(ctx, cn)
 
         # Is there members in that group ?
         if not self._isEmpty(group):
@@ -643,23 +668,23 @@ class LdapGroups(LdapConnection):
 
         return group
 
-    def removeUserFromAll(self, uid):
+    def removeUserFromAll(self, ctx, uid):
         """
         Remove a user from all groups
         """
-        user = LdapUsers().getOne(None, uid)
+        user = LdapUsers().getOne(ctx, uid)
 
         r = AF().log(PLUGIN_NAME,
                      AA.USERS_DEL_USER_FROM_ALL_GROUPS,
                      [("", AT.GROUP), (str(user.uid), AT.USER)])
 
-        for group in self.getAll():
-            self.removeUser(group, user)
+        for group in self.getAll(ctx):
+            self.removeUser(ctx, group, user)
 
         r.commit()
         return True
 
-    def changeAttributes(self, cn, attrs, log = True):
+    def changeAttributes(self, ctx, cn, attrs, log = True):
         """
         Change attributes of a group
 
@@ -669,10 +694,6 @@ class LdapGroups(LdapConnection):
         for attr, value in attrs.iteritems():
             group = self._validateGroupAttribute(group, attr, value, log)
         return group
-
-    def changeAttribute(self, cn, attr, value, log = True):
-        group = self.getOne(cn)
-        return self._validateGroupAttribute(group, attr, value, log)
 
     def _validateGroupAttribute(self, group, attr, value, log = True):
         return self._changeGroupAttribute(group, attr, value, log)
@@ -695,19 +716,20 @@ class LdapGroups(LdapConnection):
         else:
             raise GroupDoesNotExists()
 
-    def removeOne(self, cn):
+    def removeOne(self, ctx, cn):
         """
         Remove a group from the directory
         """
         r = AF().log(PLUGIN_NAME, AA.USERS_DEL_GROUP, [(cn, AT.GROUP)])
 
-        cn = self.getOne(cn)
+        cn = self.getOne(ctx, cn)
         cn.delete()
 
         # Run hooks
         self.runHook("users.removegroup", cn)
 
         r.commit()
+        return True
 
 
 # Posix user "submodule"
@@ -719,25 +741,6 @@ def changeUserPosixAttributes(uid, attrs, log = True):
     return PosixUsers().changeUserAttributes(uid, attrs, log)
 def removeUserPosixAttributes(uid):
     return PosixUsers().removeAttributes(uid)
-# Groups
-def getGroup(cn):
-    return LdapGroups().getOne(cn)
-def getGroups(search = "*", base = None):
-    return LdapGroups().getAll(search, base)
-def addGroup(cn, attrs = {}, base = None):
-    return LdapGroups().addOne(cn, attrs, base)
-def changeGroupAttribute(cn, attr, value, log = True):
-    return LdapGroups().changeAttribute(cn, attr, value, log)
-def changeGroupsAttributes(cn, attrs, log = True):
-    return LdapGroups().changeAttributes(cn, attrs, log)
-def addGroupUser(cn, uid):
-    return LdapGroups().addUser(cn, uid)
-def removeGroupUser(cn, uid):
-    return LdapGroups().removeUser(cn, uid)
-def removeGroupsUser(uid):
-    return LdapGroups().removeUserFromAll(uid)
-def removeGroup(cn):
-    return LdapGroups().removeOne(cn)
 
 
 # Exceptions for this plugin

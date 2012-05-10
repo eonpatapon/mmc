@@ -26,6 +26,7 @@ Tool and utility classes and methods for MMC
 """
 
 from mmc.site import mmcconfdir
+from mmc.support import ldapom
 
 from twisted.internet import defer, reactor
 import os
@@ -173,6 +174,14 @@ def xmlrpcCleanup(data):
         ret = map(lambda x: xmlrpcCleanup(x), data)
     elif type(data) == long:
         ret = str(data)
+    elif isinstance(data, ldapom.LdapNode):
+        ret = {}
+        ret['dn'] = str(data)
+        for attr in data._attr:
+            value = data.__getattr__(attr)._values
+            if len(value) == 1:
+                value = value[0]
+            ret[attr] = xmlrpcCleanup(value)
     else:
         ret = data
     return ret

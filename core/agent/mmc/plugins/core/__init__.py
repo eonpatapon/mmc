@@ -23,7 +23,7 @@ def getApiVersion(): return APIVERSION
 def getRevision(): return REVISION
 
 def activate():
-    UserManager().register("Dummy user backend", DummyUser)
+    UserManager().register("Dummy user backend", DummyUser, None)
     UserManager().select("Dummy user backend")
 
     # Register authenticators
@@ -73,51 +73,105 @@ class RpcProxy(RpcProxyI):
             record.commit()
         return ret
 
+    # Backend
+    def canUserHaveGroups(self):
+        return xmlrpcCleanup(UserManager().canHaveGroups(self.currentContext))
+
     # Users
     def canAddUser(self):
-        return UserManager().canAddOne(self.currentContext)
+        return xmlrpcCleanup(UserManager().canAddUser(self.currentContext))
 
     def canChangeUserPassword(self, uid):
-        return UserManager().canChangePassword(self.currentContext, uid)
+        return xmlrpcCleanup(UserManager().canChangeUserPassword(self.currentContext, 
+                                                                 uid))
 
     def canChangeUserAttributes(self, uid):
-        return UserManager().canChangeAttributes(self.currentContext, uid)
+        return xmlrpcCleanup(UserManager().canChangeUserAttributes(self.currentContext, 
+                                                                   uid))
 
     def canRemoveUser(self, uid):
-        return UserManager().canRemoveOne(self.currentContext, uid)
+        return xmlrpcCleanup(UserManager().canRemoveUser(self.currentContext, 
+                                                         uid))
 
-    def canAddUserBase(self):
-        return UserManager().canAddBase(self.currentContext)
-
-    def canUserHaveGroups(self):
-        return UserManager().canHaveGroups(self.currentContext)
+    def canManageUserBases(self):
+        return xmlrpcCleanup(UserManager().canManageUserBases(self.currentContext))
 
     def getUser(self, uid):
-        return UserManager().getOne(self.currentContext, uid)
+        return xmlrpcCleanup(UserManager().getUser(self.currentContext, uid))
 
     def getUserAcl(self, uid):        
-        return UserManager().getACL(self.currentContext, uid)
+        return xmlrpcCleanup(UserManager().getUserACL(self.currentContext, uid))
 
     def getUsers(self, search = "*", base = None):
-        return UserManager().getAll(self.currentContext, search, base)
+        return xmlrpcCleanup(UserManager().getUsers(self.currentContext, 
+                                                    search, base))
 
     def addUserBase(self, name, base = None):
-        return UserManager().addBase(self.currentContext, name, base)
+        return xmlrpcCleanup(UserManager().addUserBase(self.currentContext, 
+                                                       name, base))
+    
+    def removeUserBase(self, name, recursive = False):
+        return xmlrpcCleanup(UserManager().removeUserBase(self.currentContext, 
+                                                          name, recursive))
 
     def addUser(self, uid, password, properties = {}, base = None):
-        return UserManager().addOne(self.currentContext, uid, password, 
-                                    properties, base)
+        return xmlrpcCleanup(UserManager().addUser(self.currentContext, uid, 
+                                                   password, properties, base))
 
     def changeUserPassword(self, uid, password, old_password = None, bind = False):
-        return UserManager().changePassword(self.currentContext, uid, password,
-                                            old_password, bind)
+        return xmlrpcCleanup(UserManager().changeUserPassword(self.currentContext, 
+                                                              uid, password,
+                                                              old_password, bind))
 
     def changeUserAttributes(self, uid, attrs, log = True):
-        return UserManager().changeAttributes(self.currentContext, uid, attrs,
-                                              log)
+        return xmlrpcCleanup(UserManager().changeUserAttributes(self.currentContext, 
+                                                                uid, attrs, log))
 
     def removeUser(self, uid):
-        return UserManager().removeOne(self.currentContext, uid)
+        return xmlrpcCleanup(UserManager().removeUser(self.currentContext, uid))
+
+    def canAddGroup(self):
+        return xmlrpcCleanup(UserManager().canAddGroup(self.currentContext))
+
+    def canEditGroup(self, name):
+        return xmlrpcCleanup(UserManager().canEditGroup(self.currentContext, 
+                                                        name))
+
+    def canRemoveGroup(self, name):
+        return xmlrpcCleanup(UserManager().canRemoveGroup(self.currentContext,
+                                                          name))
+
+    def getGroup(self, name):
+        return xmlrpcCleanup(UserManager().getGroup(self.currentContext,
+                                                    name))
+
+    def getGroups(self, search = "*", base = None):
+        return xmlrpcCleanup(UserManager().getGroups(self.currentContext,
+                                                     search, base))
+
+    def addGroup(self, name, attrs = {}, base = None):
+        return xmlrpcCleanup(UserManager().addGroup(self.currentContext,
+                                                    name, attrs, base))
+
+    def changeGroupAttributes(self, name, attrs, log = True):
+        return xmlrpcCleanup(UserManager().changeGroupAttributes(self.currentContext,
+                                                                 name, attrs, log))
+
+    def addGroupUser(self, name, uid):
+        return xmlrpcCleanup(UserManager().addGroupUser(self.currentContext,
+                                                        name, uid))
+
+    def removeGroupUser(self, name, uid):
+        return xmlrpcCleanup(UserManager().removeGroupUser(self.currentContext,
+                                                           name, uid))
+
+    def removeGroupUserFromAll(self, uid):
+        return xmlrpcCleanup(UserManager().removeGroupUserFromAll(self.currentContext,
+                                                                  uid))
+
+    def removeGroup(self, name):
+        return xmlrpcCleanup(UserManager().removeGroup(self.currentContext,
+                                                       name))
 
 
 class DummyUser:
@@ -161,5 +215,5 @@ class ContextMaker(ContextMakerI):
     def getContext(self):
         s = SecurityContext()
         s.userid = self.userid
-        s.user = UserManager().getOne(None, self.userid)
+        s.user = UserManager().getUser(None, self.userid)
         return s
