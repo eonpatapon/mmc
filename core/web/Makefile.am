@@ -24,7 +24,7 @@ SUBDIRS = confs
 
 datapaths = graph img includes jsframework logout \
 	index.php main_content.php main.php version.php license.php forgotpassword.php \
-    token.php
+    token.php modules/core
 
 mmcdatadir = $(datadir)/mmc
 datafiles = $(shell find $(patsubst %,$(srcdir)/%,$(datapaths)) \
