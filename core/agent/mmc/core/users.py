@@ -20,7 +20,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 """
-User Manager is used to call methods giving informations on users whatever 
+User Manager is used to call methods giving informations on users whatever
 is the user backend.
 
 """
@@ -53,13 +53,13 @@ class UserI:
 
     def canChangePassword(self, ctx, user):
         """
-        Is the connected user allowed to change user password 
+        Is the connected user allowed to change user password
         """
         pass
 
     def canManageBases(self, ctx):
         """
-        Is the connected user allowed to add or remove user bases 
+        Is the connected user allowed to add or remove user bases
         in the current backend
         """
         pass
@@ -256,18 +256,27 @@ class UserManager(Singleton):
 
     def register(self, name, user_class, group_class = None):
         log.debug("Registering user manager '%s' / (%s, %s)" % (name, str(user_class), str(group_class)))
-        self.components[name] = {}
+        if not name in self.components:
+            self.components[name] = {}
+            self.components[name]['user_extensions'] = {}
+            self.components[name]['group_extensions'] = {}
         self.components[name]['user'] = user_class
-        self.components[name]['user_extensions'] = {}
         self.components[name]['group'] = group_class
-        self.components[name]['group_extensions'] = {}
 
     def registerUserExtension(self, name, extension_name, user_extension_class):
         log.debug("Registering user extension '%s' for '%s' / %s" % (extension_name, name, str(user_extension_class)))
+        if not name in self.components:
+            self.components[name] = {}
+            self.components[name]['user_extensions'] = {}
+            self.components[name]['group_extensions'] = {}
         self.components[name]['user_extensions'][extension_name] = user_extension_class
 
     def registerGroupExtension(self, name, extension_name, group_extension_class):
         log.debug("Registering group extension '%s' for '%s' / %s" % (extension_name, name, str(group_extension_class)))
+        if not name in self.components:
+            self.components[name] = {}
+            self.components[name]['user_extensions'] = {}
+            self.components[name]['group_extensions'] = {}
         self.components[name]['group_extensions'][extension_name] = group_extension_class
 
     def validate(self):
@@ -277,10 +286,22 @@ class UserManager(Singleton):
             log.error("Please check that the corresponding plugin was successfully enabled")
         return ret
 
-    def canUserHaveGroups(self, ctx):
+    def canUserHaveGroups(self):
         if self.components[self.main]['group']:
             return True
         return False
+
+    def getUserExtensionsList(self):
+        extensions = []
+        for extension in self.components[self.main]['user_extensions'].iteritems():
+            extensions.append(extension)
+        return extensions
+
+    def getGroupExtensionsList(self):
+        extensions = []
+        for extension in self.components[self.main]['group_extensions'].iteritems():
+            extensions.append(extension)
+        return extensions
 
     # User
 
@@ -387,7 +408,7 @@ class UserManager(Singleton):
         return klass().removeOne(ctx, group)
 
     # User extensions
-    
+
     def addUserExtension(self, ctx, name, user, password, props = {}):
         klass = self.components[self.main]['user_extensions'][name]
         return klass().addProperties(ctx, user, password, props)
@@ -401,7 +422,7 @@ class UserManager(Singleton):
         return klass().removeProperties(ctx, user)
 
     # Group extensions
-    
+
     def addGroupExtension(self, ctx, name, group, props = {}):
         klass = self.components[self.main]['group_extensions'][name]
         return klass().addProperties(ctx, group, props)

@@ -75,7 +75,13 @@ class RpcProxy(RpcProxyI):
 
     # Backend
     def canUserHaveGroups(self):
-        return xmlrpcCleanup(UserManager().canHaveGroups(self.currentContext))
+        return xmlrpcCleanup(UserManager().canHaveGroups())
+
+    def getUserExtensionsList(self):
+        return xmlrpcCleanup(UserManager().getUserExtensionsList())
+
+    def getGroupExtensionsList(self):
+        return xmlrpcCleanup(UserManager().getGroupExtensionsList())
 
     # Users
     def canAddUser(self):
