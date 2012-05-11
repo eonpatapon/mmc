@@ -31,7 +31,7 @@ from mmc.site import datadir
 from mmc.core.version import scmRevision
 from mmc.core.ldapconn import LdapConnection, LdapConfigConnection
 from mmc.core.audit import AuditFactory as AF
-from mmc.core.users import UserManager, UserI, GroupI
+from mmc.core.users import UserManager, UserI, UserExtensionI, GroupI
 from mmc.core.auth import AuthenticationManager
 from mmc.support import ldapom
 from mmc.support.config import PluginConfigFactory
@@ -109,6 +109,7 @@ def activate():
 def activate_2():
     config = PluginConfigFactory.new(LdapUsersConfig, "ldap_users")
     UserManager().register(config.backend_name, LdapUsers, LdapGroups)
+    UserManager().registerUserExtension(config.backend_name, "posix", LdapPosixUsers)
     UserManager().select(config.backend_name)
 
     AuthenticationManager().register("ldap", LdapUsersAuthenticator)
@@ -186,12 +187,6 @@ class LdapUsers(LdapConnection, UserI):
             (search, search, search, search, search)
         return list(self.search(filter, base=base))
 
-    def canManageBases(self, ctx):
-        """
-        Is the connected user allowed to add/remove user OUs
-        """
-        return True
-
     def addBase(self, ctx, name, base = None):
         """
         Add an OU for users
@@ -215,12 +210,6 @@ class LdapUsers(LdapConnection, UserI):
                 self.delete(str(ou))
             r.commit()
 
-        return True
-
-    def canAddOne(self, ctx):
-        """
-        Is the user allowed to add users
-        """
         return True
 
     def addOne(self, ctx, uid, password, attrs = {}, base = None):
@@ -255,12 +244,6 @@ class LdapUsers(LdapConnection, UserI):
 
             return user
 
-    def canHaveGroups(self, ctx):
-        """
-        Can the users have groups
-        """
-        return True
-
     def getGroups(self, ctx, uid):
         """
         Get the user's groups
@@ -272,12 +255,6 @@ class LdapUsers(LdapConnection, UserI):
                 groups.append(group)
 
         return groups
-
-    def canChangePassword(self, ctx, uid):
-        """
-        Is the connected user allowed to change uid password
-        """
-        return True
 
     def changePassword(self, ctx, uid, password, old_password = None, bind = False):
         """
@@ -302,13 +279,7 @@ class LdapUsers(LdapConnection, UserI):
 
         return user
 
-    def canChangeAttributes(self, ctx, uid):
-        """
-        Is the connected user allowed to change uid attributes
-        """
-        return True
-
-    def changeAttributes(self, ctx, uid, attrs, log = True):
+    def changeProperties(self, ctx, uid, attrs, log = True):
         """
         Change attributes of a user
 
@@ -316,13 +287,10 @@ class LdapUsers(LdapConnection, UserI):
         """
         user = self.getOne(ctx, uid)
         for attr, value in attrs.iteritems():
-            user = self._validateUserAttribute(user, attr, value, log)
+            user = self._changeUserProperty(user, attr, value, log)
         return user
 
-    def _validateUserAttribute(self, user, attr, value, log = True):
-        return self._changeUserAttribute(user, attr, value, log)
-
-    def _changeUserAttribute(self, user, attr, value, log = True):
+    def _changeUserProperty(self, user, attr, value, log = True):
         if user:
             if attr in self.attrs:
                 # don't log jpeg values
@@ -344,12 +312,6 @@ class LdapUsers(LdapConnection, UserI):
         else:
             raise UserDoesNotExists()
 
-    def canRemoveOne(self, ctx, uid):
-        """
-        Is the connected user allowed to remove uid user
-        """
-        return True
-
     def removeOne(self, ctx, uid):
         """
         Remove a user from the directory
@@ -369,7 +331,7 @@ class LdapUsers(LdapConnection, UserI):
         return True
 
 
-class PosixUsers(LdapUsers):
+class LdapPosixUsers(LdapUsers, UserExtensionI):
 
     attrs = ['uidNumber', # req
              'gidNumber', # req
@@ -378,11 +340,11 @@ class PosixUsers(LdapUsers):
              'gecos',
              'description']
 
-    def addAttributes(self, uid, password, attrs = {}):
+    def addProperties(self, ctx, uid, password, attrs = {}):
         """
         Add POSIX attributes to a user
         """
-        user = self.getOne(None, uid)
+        user = self.getOne(ctx, uid)
 
         if not 'posixAccount' in user.objectClass:
             r = AF().log(PLUGIN_NAME, AA.USERS_ADD_USER_POSIX_ATTRS, [(uid, AT.USER)])
@@ -423,11 +385,27 @@ class PosixUsers(LdapUsers):
 
         return user
 
-    def removeAttributes(self, uid):
+    def changeProperties(self, ctx, uid, attrs, log = True):
+        """
+        Change POSIX attributes
+        """
+        user = self.getOne(ctx, uid)
+        for attr, value in attrs.items():
+            if attr == 'homeDirectory':
+                # Will raise an OSError exception if path doesn't exists
+                os.stat(value)
+            if attr == 'primaryGroup':
+                attrs['gidNumber'] = self._getGID(attrs['primaryGroup'])
+
+        user = LdapUsers.changeProperties(self, ctx, user, attrs, log)
+
+        return user
+
+    def removeProperties(self, ctx, uid):
         """
         Remove all POSIX attributes from a user
         """
-        user = self.getOne(None, uid)
+        user = self.getOne(ctx, uid)
 
         if 'posixAccount' in user.objectClass:
             r = AF().log(PLUGIN_NAME, AA.USERS_DEL_USER_POSIX_ATTRS, [(uid, AT.USER)])
@@ -475,12 +453,6 @@ class PosixUsers(LdapUsers):
                 return True
         return False
 
-    def _validateAttribute(self, user, attr, value, log):
-        if attr == 'homeDirectory':
-            # Will raise an OSError exception if path doesn't exists
-            os.stat(value)
-
-        return self._changeUserAttribute(user, attr, value, log)
 
 class LdapGroups(LdapConnection, GroupI):
 
@@ -499,15 +471,6 @@ class LdapGroups(LdapConnection, GroupI):
                                 self.config.login, self.config.password,
                                 self.config.certfile)
         self.changeBase(str(self.getOU(self.config.groups_ou)))
-
-    def canAdd(self, ctx):
-        return True
-
-    def canEdit(self, ctx):
-        return True
-
-    def canRemove(self, ctx):
-        return True
 
     def getOne(self, ctx, cn):
         """
@@ -684,7 +647,7 @@ class LdapGroups(LdapConnection, GroupI):
         r.commit()
         return True
 
-    def changeAttributes(self, ctx, cn, attrs, log = True):
+    def changeProperties(self, ctx, cn, attrs, log = True):
         """
         Change attributes of a group
 
@@ -692,13 +655,10 @@ class LdapGroups(LdapConnection, GroupI):
         """
         group = self.getOne(cn)
         for attr, value in attrs.iteritems():
-            group = self._validateGroupAttribute(group, attr, value, log)
+            group =  self._changeGroupProperty(group, attr, value, log)
         return group
 
-    def _validateGroupAttribute(self, group, attr, value, log = True):
-        return self._changeGroupAttribute(group, attr, value, log)
-
-    def _changeGroupAttribute(self, group, attr, value, log = True):
+    def _changeGroupProperty(self, group, attr, value, log = True):
         if group:
             if attr in self.attrs:
                 # don't log jpeg values
@@ -730,17 +690,6 @@ class LdapGroups(LdapConnection, GroupI):
 
         r.commit()
         return True
-
-
-# Posix user "submodule"
-def addUserPosixAttributes(uid, password, attrs = {}):
-    return PosixUsers().addAttributes(uid, password, attrs)
-def changeUserPosixAttribute(uid, attr, value, log = True):
-    return PosixUsers().changeUserAttribute(uid, attr, value, log)
-def changeUserPosixAttributes(uid, attrs, log = True):
-    return PosixUsers().changeUserAttributes(uid, attrs, log)
-def removeUserPosixAttributes(uid):
-    return PosixUsers().removeAttributes(uid)
 
 
 # Exceptions for this plugin

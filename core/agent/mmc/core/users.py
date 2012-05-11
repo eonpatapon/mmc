@@ -39,27 +39,21 @@ class UserI:
         """
         pass
 
-    def canEdit(self, ctx, uid):
+    def canEdit(self, ctx, user):
         """
-        Is the connected user allowed to edit uid
-        """
-        pass
-
-    def canRemove(self, ctx, uid):
-        """
-        Is the connected user allowed to remove uid
+        Is the connected user allowed to edit user
         """
         pass
 
-    def canChangePassword(self, ctx, uid):
+    def canRemove(self, ctx, user):
         """
-        Is the connected user allowed to change uid password 
+        Is the connected user allowed to remove user
         """
         pass
 
-    def canChangeAttributes(self, ctx, uid):
+    def canChangePassword(self, ctx, user):
         """
-        Is the connected user allowed to change uid attributes
+        Is the connected user allowed to change user password 
         """
         pass
 
@@ -70,25 +64,19 @@ class UserI:
         """
         pass
 
-    def canHaveGroups(self, ctx):
-        """
-        Does the backend handle user's groups
-        """
-        pass
-
-    def getOne(self, ctx, uid):
+    def getOne(self, ctx, user):
         """
         Return user
         """
         pass
 
-    def getACL(self, ctx, uid):
+    def getACL(self, ctx, user):
         """
         Return user MMC ACLs
         """
         pass
 
-    def getGroups(self, ctx, uid):
+    def getGroups(self, ctx, user):
         """
         Return user groups
         """
@@ -112,29 +100,51 @@ class UserI:
         """
         pass
 
-    def addOne(self, ctx, uid, password, properties = {}, base = None):
+    def addOne(self, ctx, user, password, properties = {}, base = None):
         """
         Add a user
         """
         pass
 
-    def changePassword(self, ctx, uid, password, old_password = None, bind = False):
+    def changePassword(self, ctx, user, password, old_password = None, bind = False):
         """
         Change user password
         """
         pass
 
-    def changeAttributes(self, ctx, uid, attrs, log = True):
+    def changeProperties(self, ctx, user, props, log = True):
         """
         Change user attributes
         """
         pass
 
-    def removeOne(self, ctx, uid):
+    def removeOne(self, ctx, user):
         """
         Remove user
         """
         pass
+
+
+class UserExtensionI:
+
+    def addProperties(self, ctx, user, password, props):
+        """
+        Add extension attributes on user user
+        """
+        pass
+
+    def changeProperties(self, ctx, user, props, log = True):
+        """
+        Change extension attributes on user user
+        """
+        pass
+
+    def removeProperties(self, ctx, user):
+        """
+        Remove extension attributes from user user
+        """
+        pass
+
 
 class GroupI:
 
@@ -144,19 +154,19 @@ class GroupI:
         """
         pass
 
-    def canEdit(self, ctx, name):
+    def canEdit(self, ctx, group):
         """
-        Is the connected user allowed to edit the group name
-        """
-        pass
-
-    def canRemove(self, ctx, name):
-        """
-        Is the connected user allowed to remove the group name
+        Is the connected user allowed to edit the group
         """
         pass
 
-    def getOne(self, ctx, name):
+    def canRemove(self, ctx, group):
+        """
+        Is the connected user allowed to remove the group
+        """
+        pass
+
+    def getOne(self, ctx, group):
         """
         Return group
         """
@@ -168,39 +178,60 @@ class GroupI:
         """
         pass
 
-    def addOne(self, ctx, name, attrs = {}, base = None):
+    def addOne(self, ctx, group, props = {}, base = None):
         """
-        Add a group name
+        Add a group
         """
         pass
 
-    def changeAttributes(self, ctx, name, attrs, log = True):
+    def changeProperties(self, ctx, group, props, log = True):
         """
         Change group attributes
         """
         pass
 
-    def addUser(self, ctx, name, uid):
+    def addUser(self, ctx, group, user):
         """
-        Add a user to the group name
-        """
-        pass
-
-    def removeUser(self, ctx, name, uid):
-        """
-        Remove the user from the group name
+        Add a user to the group
         """
         pass
 
-    def removeUserFromAll(self, ctx, uid):
+    def removeUser(self, ctx, group, user):
+        """
+        Remove the user from the group
+        """
+        pass
+
+    def removeUserFromAll(self, ctx, user):
         """
         Remove the user from all groups
         """
         pass
 
-    def removeOne(self, ctx, name):
+    def removeOne(self, ctx, group):
         """
-        Remove the group name
+        Remove the group
+        """
+        pass
+
+
+class GroupExtensionI:
+
+    def addProperties(self, ctx, group, props = {}):
+        """
+        Add extension attributes on group
+        """
+        pass
+
+    def changeProperties(self, ctx, group, props, log = True):
+        """
+        Change extension attributes on group
+        """
+        pass
+
+    def removeProperties(self, ctx, group):
+        """
+        Remove extension attributes from group
         """
         pass
 
@@ -224,10 +255,20 @@ class UserManager(Singleton):
         return (self.main != 'none')
 
     def register(self, name, user_class, group_class = None):
-        log.debug("Registering user manager %s / (%s, %s)" % (name, str(user_class), str(group_class)))
+        log.debug("Registering user manager '%s' / (%s, %s)" % (name, str(user_class), str(group_class)))
         self.components[name] = {}
         self.components[name]['user'] = user_class
+        self.components[name]['user_extensions'] = {}
         self.components[name]['group'] = group_class
+        self.components[name]['group_extensions'] = {}
+
+    def registerUserExtension(self, name, extension_name, user_extension_class):
+        log.debug("Registering user extension '%s' for '%s' / %s" % (extension_name, name, str(user_extension_class)))
+        self.components[name]['user_extensions'][extension_name] = user_extension_class
+
+    def registerGroupExtension(self, name, extension_name, group_extension_class):
+        log.debug("Registering group extension '%s' for '%s' / %s" % (extension_name, name, str(group_extension_class)))
+        self.components[name]['group_extensions'][extension_name] = group_extension_class
 
     def validate(self):
         ret = (self.main == "none") or (self.main in self.components)
@@ -241,41 +282,39 @@ class UserManager(Singleton):
             return True
         return False
 
+    # User
+
     def canAddUser(self, ctx):
         klass = self.components[self.main]['user']
         return klass().canAdd(ctx)
 
-    def canEditUser(self, ctx, uid):
+    def canEditUser(self, ctx, user):
         klass = self.components[self.main]['user']
-        return klass().canEdit(ctx, uid)
+        return klass().canEdit(ctx, user)
 
-    def canRemoveUser(self, ctx, uid):
+    def canRemoveUser(self, ctx, user):
         klass = self.components[self.main]['user']
-        return klass().canRemove(ctx, uid)
+        return klass().canRemove(ctx, user)
 
-    def canChangeUserPassword(self, ctx, uid):
+    def canChangeUserPassword(self, ctx, user):
         klass = self.components[self.main]['user']
-        return klass().canChangePassword(ctx, uid)
-
-    def canChangeUserAttributes(self, ctx, uid):
-        klass = self.components[self.main]['user']
-        return klass().canChangeAttributes(ctx, uid)
+        return klass().canChangePassword(ctx, user)
 
     def canManageUserBases(self, ctx):
         klass = self.components[self.main]['user']
         return klass().canManageBases(ctx)
 
-    def getUser(self, ctx, uid):
+    def getUser(self, ctx, user):
         klass = self.components[self.main]['user']
-        return klass().getOne(ctx, uid)
+        return klass().getOne(ctx, user)
 
-    def getUserACL(self, ctx, uid):
+    def getUserACL(self, ctx, user):
         klass = self.components[self.main]['user']
-        return klass().getACL(ctx, uid)
+        return klass().getACL(ctx, user)
 
-    def getUserGroups(self, ctx, uid):
+    def getUserGroups(self, ctx, user):
         klass = self.components[self.main]['user']
-        return klass().getGroups(ctx, uid)
+        return klass().getGroups(ctx, user)
 
     def getUsers(self, ctx, search = "*", base = None):
         klass = self.components[self.main]['user']
@@ -289,62 +328,88 @@ class UserManager(Singleton):
         klass = self.components[self.main]['user']
         return klass().removeBase(ctx, name)
 
-    def addUser(self, ctx, uid, password, properties = {}, base = None):
+    def addUser(self, ctx, user, password, properties = {}, base = None):
         klass = self.components[self.main]['user']
-        return klass().addOne(ctx, uid, password, properties, base)
+        return klass().addOne(ctx, user, password, properties, base)
 
-    def changeUserPassword(self, ctx, uid, password, old_password = None, bind = False):
+    def changeUserPassword(self, ctx, user, password, old_password = None, bind = False):
         klass = self.components[self.main]['user']
-        return klass().changePassword(ctx, uid, password, old_password, bind)
+        return klass().changePassword(ctx, user, password, old_password, bind)
 
-    def changeUserAttributes(self, ctx, uid, attrs, log = True):
+    def changeUserProperties(self, ctx, user, props, log = True):
         klass = self.components[self.main]['user']
-        return klass().changeAttributes(ctx, uid, attrs, log)
+        return klass().changeProperties(ctx, user, props, log)
 
-    def removeUser(self, ctx, uid):
+    def removeUser(self, ctx, user):
         klass = self.components[self.main]['user']
-        return klass().removeOne(ctx, uid)
+        return klass().removeOne(ctx, user)
+
+    # Groups
 
     def canAddGroup(self, ctx):
         klass = self.components[self.main]['group']
         return klass().canAdd(ctx)
 
-    def canEditGroup(self, ctx, name):
+    def canEditGroup(self, ctx, group):
         klass = self.components[self.main]['group']
-        return klass().canEdit(ctx)
+        return klass().canEdit(ctx, group)
 
-    def canRemoveGroup(self, ctx, name):
+    def canRemoveGroup(self, ctx, group):
         klass = self.components[self.main]['group']
-        return klass().canRemove(ctx, name)
+        return klass().canRemove(ctx, group)
 
-    def getGroup(self, ctx, name):
+    def getGroup(self, ctx, group):
         klass = self.components[self.main]['group']
-        return klass().getOne(ctx, name)
+        return klass().getOne(ctx, group)
 
     def getGroups(self, ctx, search = "*", base = None):
         klass = self.components[self.main]['group']
         return klass().getAll(ctx, search, base)
 
-    def addGroup(self, ctx, name, attrs = {}, base = None):
+    def addGroup(self, ctx, group, props = {}, base = None):
         klass = self.components[self.main]['group']
-        return klass().addOne(ctx, name, attrs, base)
+        return klass().addOne(ctx, group, props, base)
 
-    def changeGroupAttributes(self, ctx, name, attrs, log = True):
+    def addGroupUser(self, ctx, group, user):
         klass = self.components[self.main]['group']
-        return klass().changeAttributes(ctx, name, attrs, log)
+        return klass().addUser(ctx, group, user)
 
-    def addGroupUser(self, ctx, name, uid):
+    def removeGroupUser(self, ctx, group, user):
         klass = self.components[self.main]['group']
-        return klass().addUser(ctx, name, uid)
+        return klass().removeUser(ctx, group, user)
 
-    def removeGroupUser(self, ctx, name, uid):
+    def removeGroupUserFromAll(self, ctx, user):
         klass = self.components[self.main]['group']
-        return klass().removeUser(ctx, name, uid)
+        return klass().removeUserFromAll(ctx, user)
 
-    def removeGroupUserFromAll(self, ctx, uid):
+    def removeGroup(self, ctx, group):
         klass = self.components[self.main]['group']
-        return klass().removeUserFromAll(ctx, uid)
+        return klass().removeOne(ctx, group)
 
-    def removeGroup(self, ctx, name):
-        klass = self.components[self.main]['group']
-        return klass().removeOne(ctx, name)
+    # User extensions
+    
+    def addUserExtension(self, ctx, name, user, password, props = {}):
+        klass = self.components[self.main]['user_extensions'][name]
+        return klass().addProperties(ctx, user, password, props)
+
+    def changeUserExtensionProps(self, ctx, name, user, props, log = True):
+        klass = self.components[self.main]['user_extensions'][name]
+        return klass().changeProperties(ctx, user, props, log)
+
+    def removeUserExtension(self, ctx, name, user):
+        klass = self.components[self.main]['user_extensions'][name]
+        return klass().removeProperties(ctx, user)
+
+    # Group extensions
+    
+    def addGroupExtension(self, ctx, name, group, props = {}):
+        klass = self.components[self.main]['group_extensions'][name]
+        return klass().addProperties(ctx, group, props)
+
+    def changeGroupExtensionProps(self, ctx, name, group, props, log = True):
+        klass = self.components[self.main]['group_extensions'][name]
+        return klass().changeProperties(ctx, group, props, log)
+
+    def removeGroupExtension(self, ctx, name, group):
+        klass = self.components[self.main]['group_extensions'][name]
+        return klass().removeProperties(ctx, group)

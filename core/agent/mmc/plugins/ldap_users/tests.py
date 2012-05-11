@@ -23,8 +23,8 @@ import unittest
 
 from mmc.support.config import PluginConfigFactory
 from mmc.plugins.ldap_users.config import LdapUsersConfig
-from mmc.plugins.ldap_users import LdapUsers, PosixUsers, UserDoesNotExists, \
-                                   LdapGroups
+from mmc.plugins.ldap_users import LdapUsers, LdapPosixUsers, \
+                                   UserDoesNotExists, LdapGroups
 
 class TestUsersGroups(unittest.TestCase):
 
@@ -34,7 +34,7 @@ class TestUsersGroups(unittest.TestCase):
         self.groups_ou = self.groups.addOU("groups_test")
         self.groups.changeBase(self.groups_ou._dn)
         self.users = LdapUsers()
-        self.posix_users = PosixUsers()
+        self.posix_users = LdapPosixUsers()
         self.users_ou = self.users.addOU("users_tests")
         self.users.changeBase(self.users_ou._dn)
 
@@ -43,11 +43,11 @@ class TestUsersGroups(unittest.TestCase):
         self.assertEqual(str(u.uid), 'user')
         self.assertTrue(u.check_password('pasééù'))
         self.assertEqual(len(self.users.getAll(None)), 1)
-        self.users.changeAttributes(None, 'user', {'mail': 'user@example.com'})
+        self.users.changeProperties(None, 'user', {'mail': 'user@example.com'})
         # update our current object
         u.retrieve_attributes()
         self.assertEqual(str(u.mail), 'user@example.com')
-        self.users.changeAttributes(None, 'user', {'preferredLanguage': 'fr;en', 'mobile': '+336456789' })
+        self.users.changeProperties(None, 'user', {'preferredLanguage': 'fr;en', 'mobile': '+336456789' })
         u.retrieve_attributes()
         self.assertEqual(unicode(u.preferredLanguage), u"fr;en")
         self.assertEqual(unicode(u.mobile), u"+336456789")
@@ -129,17 +129,27 @@ class TestUsersGroups(unittest.TestCase):
         self.assertEqual(str(g.gidNumber), "10000")
         g = self.groups.addOne(None, "group2", {'description': 'Test group 2'})
         self.assertEqual(str(g.gidNumber), "10001")
-        u = self.posix_users.addAttributes("user1", "", {"primaryGroup": "group1"})
+        u = self.posix_users.addProperties(None, "user1", "", {"primaryGroup": "group1"})
         self.assertEqual(str(u.uidNumber), "10000")
         self.assertEqual(str(u.gidNumber), "10000")
         self.assertEqual(str(u.gecos), "Test user 1 user1")
-        u = self.posix_users.addAttributes("user2", "", {"primaryGroup": "group1"})
+        u = self.posix_users.addProperties(None, "user2", "", {"primaryGroup": "group1"})
         self.assertEqual(str(u.uidNumber), "10001")
         self.assertEqual(str(u.gidNumber), "10000")
         self.assertEqual(str(u.gecos), "Test user 2 Eau")
-        u = self.posix_users.removeAttributes("user2")
+        u = self.posix_users.removeProperties(None, "user2")
         self.assertEqual(list(u.objectClass), [u'top', u'person', u'inetOrgPerson', u'organizationalPerson'])
         self.assertRaises(AttributeError, u.__getattr__, "uidNumber")
+
+    def testChangePosixAttributes(self):
+        self.users.addOne(None, "user1", "pasééù", {'givenName': 'Test user 1'})
+        self.groups.addOne(None, "group1", {'description': 'Test group 1'})
+        self.groups.addOne(None, "group2", {'description': 'Test group 2'})
+        self.posix_users.addProperties(None, "user1", "", {"primaryGroup": "group1"})
+        self.posix_users.changeProperties(None, "user1", {"primaryGroup": "group2"})
+        u = self.posix_users.changeProperties(None, "user1", {"uidNumber": "20000"})
+        self.assertEqual(str(u.uidNumber), "20000")
+        self.assertEqual(str(u.gidNumber), "10001")
 
     def tearDown(self):
         self.groups.delete_r(self.groups_ou._dn)
