@@ -46,6 +46,7 @@ import stat
 import logging
 
 import xmlrpclib
+import httplib
 from urlparse import urlparse
 from base64 import encodestring
 from cookielib import LWPCookieJar
@@ -69,6 +70,7 @@ class Proxy(xmlrpclib.ServerProxy, object):
         self.passwd = passwd
         self.authenticating = False
 
+
 class CookieResponse:
     """
     Adapter for the LWPCookieJar.extract_cookies
@@ -78,6 +80,7 @@ class CookieResponse:
 
     def info(self):
         return self.headers
+
 
 class MMCSafeTransport(xmlrpclib.SafeTransport):
     """
@@ -92,15 +95,45 @@ class MMCSafeTransport(xmlrpclib.SafeTransport):
         """ This method returns an XMLRPC client which supports
         basic authentication through cookies.
         """
+        xmlrpclib.SafeTransport.__init__(self)
         self.credentials = (username, passwd)
         # See xmlrpc.Transport Class
         self._use_datetime = use_datetime
+        self.accept_gzip_encoding = False
+
+        # UGLY HACK ALERT. If we're running on Python 2.6 or earlier,
+        # self.make_connection() needs to return an HTTP; newer versions
+        # expect an HTTPConnection. Our strategy is to guess which is
+        # running, and override self.make_connection for older versions.
+        # That check and override happens here.
+        if self._connection_requires_compat():
+            self.make_connection = self._make_connection_compat
+
+    def _connection_requires_compat(self):
+        # UGLY HACK ALERT. Python 2.7 xmlrpclib caches connection objects in
+        # self._connection (and sets self._connection in __init__). Python
+        # 2.6 and earlier has no such cache. Thus, if self._connection
+        # exists, we're running the newer-style, and if it doesn't then
+        # we're running older-style and thus need compatibility mode.
+        try:
+            self._connection
+            return False
+        except AttributeError:
+            return True
+
+    def _make_connection_compat(self, host):
+        # This method runs as make_connection under Python 2.6 and older.
+        # __init__ detects which version we need and pastes this method
+        # directly into self.make_connection if necessary.
+        # Returns an HTTPSConnection like Python 2.7 does.
+        host, self._extra_headers, x509 = self.get_host_info(host)
+        return httplib.HTTPSConnection(host)
 
     def send_basic_auth(self, connection):
         """ Include HTTPS Basic Authentication data in a header
         """
         auth = encodestring("%s:%s" % self.credentials).strip()
-        auth = 'Basic %s' %(auth,)
+        auth = 'Basic %s' % (auth,)
         connection.putheader('Authorization', auth)
 
     def send_cookie_auth(self, connection):
@@ -133,10 +166,13 @@ class MMCSafeTransport(xmlrpclib.SafeTransport):
         self.send_request(h, handler, request_body)
         self.send_host(h, host)
         self.send_user_agent(h)
-
         self.send_content(h, request_body)
 
-        errcode, errmsg, headers = h.getreply()
+        r = h.getresponse()
+        errcode = r.status
+        errmsg = r.reason
+        headers = r.msg
+
         # Creating cookie jar
         cresponse = CookieResponse(headers)
         crequest = CookieRequest('https://' + host + '/')
@@ -152,13 +188,31 @@ class MMCSafeTransport(xmlrpclib.SafeTransport):
                 host + handler,
                 errcode, errmsg,
                 headers
-                )
+            )
 
         self.verbose = verbose
 
-        try:
-            sock = h._conn.sock
-        except AttributeError:
-            sock = None
+        return self.parse_response(r)
 
-        return self._parse_response(h.getfile(), sock)
+    # Backported from python 2.7
+    def parse_response(self, response):
+        # read response data from httpresponse, and parse it
+
+        # Check for new http response object, else it is a file object
+        stream = response
+
+        p, u = self.getparser()
+
+        while 1:
+            data = stream.read(1024)
+            if not data:
+                break
+            if self.verbose:
+                print "body:", repr(data)
+            p.feed(data)
+
+        if stream is not response:
+            stream.close()
+        p.close()
+
+        return u.close()
