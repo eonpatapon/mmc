@@ -32,30 +32,59 @@ if (isset($_GET["filter"]))
 if (!$filter)
     $filter = "*";
 
-$users = getUsers($filter);
+if (isset($_GET["start"])) 
+    $start = $_GET["start"];
+else
+    $start = NULL;
+
+if (isset($_GET["end"])) 
+    $end = $_GET["end"];
+else
+    $end = NULL;
+
+$users = getUsers($filter, $start, $end);
+$count = $users[0];
+$users = $users[1];
 $arrUser = array();
+$arrExtra = array();
+
+$managerName = getUserManagerName();
+// Get attributes names
+require('modules/' . $managerName . '/includes/userList.inc.php');
 
 foreach($users as $user) {
-    $arrUser[] = $user['uid'];
+    $arrUser[] = $user[$login['attr']];
+    foreach($extra as $key => $infos) {
+        if (!isset($arrExtra[$key]))
+            $arrExtra[$key] = array();
+
+        $values = array();
+        foreach($infos['value'] as $attr)
+            $values[] = $user[$attr];
+
+        if ($values)
+            $arrExtra[$key][] = vsprintf($infos['pattern'], $values);
+        else
+            $arrExtra[$key][] = '';
+    }
 }
 
-print_r($arrUser);
-
-$n = new UserInfos($arrUser, _("Login"));
-$n->setItemCount(3);
+$n = new OptimizedListInfos($arrUser, $login['label']);
+$n->setItemCount($count);
+$n->setCssClass("userName");
 $n->setNavBar(new AjaxPaginator(3, $filter, "updateSearchParam", $maxperpage));
+$n->start = $start ? $start : 0;
+$n->end = $count - 1;
 
-$n->start = 0;
-$n->end = 3 - 1;
+foreach($arrExtra as $name => $values)
+    $n->addExtraInfo($values, $name);
 
-/*$n->addExtraInfo($arrSnUser,_("Name"));
-$n->addExtraInfo($mails,_("Mail"));
-$n->addExtraInfo($phones,_("Telephone"));*/
-
-$n->addActionItem(new ActionItem(_("Edit"), "edit", "edit", "user"));
-$n->addActionItem(new ActionItem(_("MMC rights"), "editacl", "editacl", "user"));
-$n->addActionItem(new ActionPopupItem(_("Delete"), "delete", "delete", "user"));
-$n->addActionItem(new ActionPopupItem(_("Backup"), "backup", "backup", "user"));
+if ($actions['edit'])
+    $n->addActionItem(new ActionItem(_("Edit"), "edit", "edit", "user"));
+if ($actions['acl'])
+    $n->addActionItem(new ActionItem(_("MMC rights"), "editacl", "editacl", "user"));
+if ($actions['delete'])
+    $n->addActionItem(new ActionPopupItem(_("Delete"), "delete", "delete", "user"));
 /*if (has_audit_working()) {
     $n->addActionItem(new ActionItem(_("Logged Actions"), "loguser", "audit", "user"));
 }*/

@@ -31,7 +31,7 @@ class LdapUsersConfig(PluginConfig):
     """
 
     # UserManager backend name
-    backend_name = "LDAP Users"
+    backend_name = "ldap_users"
     # LDAP configuration
     type = 'OpenLDAP'
     uri = 'ldap://127.0.0.1:389'
@@ -114,10 +114,6 @@ class LdapUsersConfig(PluginConfig):
             pass
         try:
             self.config_password = self.get("ldap_config", "password")
-        except:
-            pass
-        try:
-            self.backend_name = self.get("users", "name")
         except:
             pass
         try:

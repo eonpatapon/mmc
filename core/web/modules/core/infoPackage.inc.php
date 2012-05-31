@@ -99,7 +99,7 @@ $submod->addPage($page);
 
 $page = new Page("delete",_("Delete a user"));
 $page->setFile("modules/core/users/delete.php",
-               array("noHeader"=>True,"visible"=>False));
+               array("noHeader" => True, "visible" => False));
 $submod->addPage($page);
 
 $page = new Page("passwd",_("Change user password"));

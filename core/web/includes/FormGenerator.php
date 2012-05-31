@@ -554,14 +554,14 @@ class DynamicDateTpl extends InputTpl {
 
 class MultipleInputTpl extends AbstractTpl {
 
-    function MultipleInputTpl($name,$desc='', $new=false) {
+    function MultipleInputTpl($name, $desc='', $regexp='/.*/', $new=false) {
         $this->name = $name;
         /*
           stripslashes is needed, because some characters may be backslashed
           when adding/removing an input field.
         */
         $this->desc = stripslashes($desc);
-        $this->regexp = '/.*/';
+        $this->regexp = $regexp;
         $this->new = $new;
         $this->tooltip = False;
     }
@@ -888,7 +888,7 @@ class FormElement extends HtmlElement {
     var $cssErrorName;
     var $tooltip;
 
-    function FormElement($desc, $tpl, $extraInfo = array()) {
+    function FormElement($desc = '', $tpl = NULL, $extraInfo = array()) {
         $this->desc = $desc;
         $this->template = &$tpl;
         foreach ($extraInfo as $key => $value) {
@@ -898,6 +898,14 @@ class FormElement extends HtmlElement {
 
     function setCssError($name) {
         $this->cssErrorName=$name;
+    }
+
+    function setDesc($desc) {
+        $this->desc = $desc;
+    }
+
+    function setTemplate($tpl) {
+        $this->template = &$tpl;
     }
 
     /**

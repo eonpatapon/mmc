@@ -148,7 +148,7 @@ class LdapUsers(LdapConnection, UserI):
         # Limit queries to the users OU
         self.changeBase(str(self.getOU(self.config.users_ou)))
 
-    def getOne(self, ctx, uid):
+    def getOne(self, ctx, uid, base = None):
         """
         Get user from the directory
         """
@@ -157,7 +157,7 @@ class LdapUsers(LdapConnection, UserI):
         if isinstance(uid, ldapom.LdapNode):
             return uid
         # Search the user
-        for user in self.search('uid=%s' % uid):
+        for user in self.search('uid=%s' % uid, base = base):
             return user
         # Handle the special admin login
         if uid == "root":
@@ -178,14 +178,20 @@ class LdapUsers(LdapConnection, UserI):
         else:
             return ""
 
-    def getAll(self, ctx, search = "*", base = None):
+    def getAll(self, ctx, search = "*", start = None, end = None, base = None):
         """
         Return the list of users below the base
         """
-        if not base: base = self._base;
+        if not base: base = self._base
+        if not start: start = None
+        if not end: end = None
+
         filter = "(|(uid=%s)(givenName=%s)(sn=%s)(telephoneNumber=%s)(mail=%s))" % \
             (search, search, search, search, search)
-        return list(self.search(filter, base=base))
+
+        users = list(self.search(filter, base=base))
+
+        return (len(users), users[start:end])
 
     def addBase(self, ctx, name, base = None):
         """
@@ -221,7 +227,7 @@ class LdapUsers(LdapConnection, UserI):
         r = AF().log(PLUGIN_NAME, AA.USERS_ADD_USER, [(uid, AT.USER)])
 
         try:
-            user = self.getOne(ctx, uid)
+            user = self.getOne(ctx, uid, base = self._default_base)
             raise UserAlreadyExists()
         except UserDoesNotExists:
             # Create the user
@@ -249,12 +255,13 @@ class LdapUsers(LdapConnection, UserI):
         Get the user's groups
         """
         user = self.getOne(ctx, uid)
-        groups = []
-        for group in LdapGroups().getAll(ctx):
+        user_groups = []
+        nb, groups = LdapGroups().getAll(ctx)
+        for group in groups:
             if 'uniqueMember' in group and str(user) in group.uniqueMember:
-                groups.append(group)
+                user_groups.append(group)
 
-        return groups
+        return user_groups
 
     def changePassword(self, ctx, uid, password, old_password = None, bind = False):
         """
@@ -420,7 +427,8 @@ class LdapPosixUsers(LdapUsers, UserExtensionI):
 
     def _getUID(self):
         uidNumber = self.config.uid_start - 1
-        for user in self.getAll(None):
+        nb, users = self.getAll(None)
+        for user in users:
             if 'uidNumber' in user and int(str(user.uidNumber)) > uidNumber:
                     uidNumber = int(str(user.uidNumber))
         uidNumber += 1
@@ -485,13 +493,18 @@ class LdapGroups(LdapConnection, GroupI):
             return group
         raise GroupDoesNotExists()
 
-    def getAll(self, ctx, search = "*", base = None):
+    def getAll(self, ctx, search = "*", start = None, end = None, base = None):
         """
         Return the list of groups below the base
         """
         if not base: base = self._base
+        if not start: start = None
+        if not end: end = None
+
         filter = "(|(cn=%s)(description=%s))" % (search, search)
-        return list(self.search(filter, base=base))
+        groups = list(self.search(filter, base=base))
+
+        return (len(groups), groups[start:end])
 
     def addOne(self, ctx, cn, attrs = {}, base = None):
         """
@@ -527,7 +540,8 @@ class LdapGroups(LdapConnection, GroupI):
         Get next free gidNumber
         """
         gidNumber = self.config.gid_start - 1
-        for group in self.getAll(ctx):
+        nb, groups = self.getAll(ctx)
+        for group in groups:
             if 'gidNumber' in group and int(str(group.gidNumber)) > gidNumber:
                     gidNumber = int(str(group.gidNumber))
         gidNumber += 1
@@ -539,7 +553,9 @@ class LdapGroups(LdapConnection, GroupI):
         """
         if not 'uniqueMember' in group and not 'memberUid' in group:
             return True
-
+        elif len(group.uniqueMember) == 0 and len(group.memberUid) == 0:
+            return True
+        
         return False
 
     def addUser(self, ctx, cn, uid):
@@ -608,7 +624,7 @@ class LdapGroups(LdapConnection, GroupI):
             # OpenLDAP
             # No more members switch back to namedObject
             # structural objectClass
-            if self.config.type == "OpenLDAP" and len(group.uniqueMember) == 0:
+            if self.config.type == "OpenLDAP" and self._isEmpty(group):
                 dn = str(group)
                 cn = str(group.cn)
                 if 'description' in group:
@@ -641,7 +657,8 @@ class LdapGroups(LdapConnection, GroupI):
                      AA.USERS_DEL_USER_FROM_ALL_GROUPS,
                      [("", AT.GROUP), (str(user.uid), AT.USER)])
 
-        for group in self.getAll(ctx):
+        nb, groups = self.getAll(ctx)
+        for group in groups:
             self.removeUser(ctx, group, user)
 
         r.commit()

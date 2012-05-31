@@ -20,21 +20,26 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+// User login
+$login = array(
+    "label" => _T("Login", "ldap_users"),
+    "attr" => 'uid'
+);
 
-function getUserManagerName() {
-    return xmlCall("core.getUserManagerName");
-}
+// Extra info
+$extra = array(
+    _T("Name", "ldap_users") => 
+        array('pattern' => '%s %s', 'value' => array('givenName', 'sn')), 
+    _T("Mail") => 
+        array('pattern' => '<a href="mailto:%s">%s</a>', 'value' => array('mail', 'mail')),
+    _T("Phone") => 
+        array('pattern' => '%s', 'value' => 'telephoneNumber')
+);
 
-function getUsers($search = "*", $start = NULL, $end = NULL, $base = NULL) {
-    return xmlCall("core.getUsers", array($search, $start, $end, $base));
-}
-
-function getUser($uid) {
-    return xmlCall("core.getUser", array($uid));
-}
-
-function removeUser($uid) {
-    return xmlCall("core.removeUser", array($uid));
-}
+$actions = array(
+    "edit" => true,
+    "delete" => true,
+    "acl" => true
+);
 
 ?>

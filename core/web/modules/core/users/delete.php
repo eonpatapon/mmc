@@ -20,21 +20,27 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+if (isset($_GET["user"])) 
+    $user = urldecode($_GET["user"]);
+if (isset($_POST["user"]))
+    $user = $_POST["user"];
 
-function getUserManagerName() {
-    return xmlCall("core.getUserManagerName");
-}
-
-function getUsers($search = "*", $start = NULL, $end = NULL, $base = NULL) {
-    return xmlCall("core.getUsers", array($search, $start, $end, $base));
-}
-
-function getUser($uid) {
-    return xmlCall("core.getUser", array($uid));
-}
-
-function removeUser($uid) {
-    return xmlCall("core.removeUser", array($uid));
+if (isset($_POST["bdeluser"])) {
+    removeUser($user);
+    if (!isXMLRPCError()) {
+        new NotifyWidgetSuccess(sprintf(_("User %s has been successfully deleted"), $user));
+    }
+    header("Location: " . urlStrRedirect("core/users/list" ));
+} else {
+    $f = new PopupForm(_("Delete user"));
+    $f->addText(sprintf(_("You will delete user <b>%s</b>."), $user));
+    $cb = new CheckboxTpl("delfiles", _("Delete all user's files"));
+    $f->add($cb, array("value" => ""));
+    $hidden = new HiddenTpl("user");
+    $f->add($hidden, array("value" => $user, "hide" => True));
+    $f->addValidateButton("bdeluser");
+    $f->addCancelButton("bback");
+    $f->display();
 }
 
 ?>

@@ -82,7 +82,7 @@ class UserI:
         """
         pass
 
-    def getAll(self, ctx, search = "*", base = None):
+    def getAll(self, ctx, search = "*", start = None, end = None, base = None):
         """
         Return a list of users
         """
@@ -172,7 +172,7 @@ class GroupI:
         """
         pass
 
-    def getAll(self, ctx, search = "*", base = None):
+    def getAll(self, ctx, search = "*", start = None, end = None, base = None):
         """
         Return a list of groups
         """
@@ -337,9 +337,9 @@ class UserManager(Singleton):
         klass = self.components[self.main]['user']
         return klass().getGroups(ctx, user)
 
-    def getUsers(self, ctx, search = "*", base = None):
+    def getUsers(self, ctx, search = "*", start = None, end = None, base = None):
         klass = self.components[self.main]['user']
-        return klass().getAll(ctx, search, base)
+        return klass().getAll(ctx, search, start, end, base)
 
     def addUserBase(self, ctx, name, base = None):
         klass = self.components[self.main]['user']
@@ -383,9 +383,9 @@ class UserManager(Singleton):
         klass = self.components[self.main]['group']
         return klass().getOne(ctx, group)
 
-    def getGroups(self, ctx, search = "*", base = None):
+    def getGroups(self, ctx, search = "*", start = None, end = None, base = None):
         klass = self.components[self.main]['group']
-        return klass().getAll(ctx, search, base)
+        return klass().getAll(ctx, search, start, end, base)
 
     def addGroup(self, ctx, group, props = {}, base = None):
         klass = self.components[self.main]['group']

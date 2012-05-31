@@ -16,7 +16,7 @@ list($_SESSION["acl"], $_SESSION["acltab"], $_SESSION["aclattr"]) = createAclArr
 
 /* Register agent module list */
 $_SESSION["supportModList"] = array();
-$list = xmlCall("base.getModList", null);
+$list = xmlCall("core.getEnabledPlugins", null);
 if (is_array($list)) {
     sort($list);
     $_SESSION["supportModList"] = $list;

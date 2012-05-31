@@ -74,6 +74,9 @@ class RpcProxy(RpcProxyI):
         return ret
 
     # Backend
+    def getUserManagerName(self):
+        return xmlrpcCleanup(UserManager().getManagerName())
+
     def canUserHaveGroups(self):
         return xmlrpcCleanup(UserManager().canHaveGroups())
 
@@ -112,9 +115,9 @@ class RpcProxy(RpcProxyI):
         return xmlrpcCleanup(UserManager().getUserGroups(self.currentContext, 
                                                          user))
 
-    def getUsers(self, search = "*", base = None):
+    def getUsers(self, search = "*", start = None, end = None, base = None):
         return xmlrpcCleanup(UserManager().getUsers(self.currentContext, 
-                                                    search, base))
+                                                    search, start, end, base))
 
     def addUserBase(self, name, base = None):
         return xmlrpcCleanup(UserManager().addUserBase(self.currentContext, 
@@ -155,9 +158,9 @@ class RpcProxy(RpcProxyI):
         return xmlrpcCleanup(UserManager().getGroup(self.currentContext,
                                                     group))
 
-    def getGroups(self, search = "*", base = None):
+    def getGroups(self, search = "*", start = None, end = None, base = None):
         return xmlrpcCleanup(UserManager().getGroups(self.currentContext,
-                                                     search, base))
+                                                     search, start, end, base))
 
     def addGroup(self, group, props = {}, base = None):
         return xmlrpcCleanup(UserManager().addGroup(self.currentContext,
@@ -224,7 +227,7 @@ class DummyUser:
     def getACL(self, ctx, user):
         return ""
 
-    def getAll(self, ctx, search = "*", base = None):
+    def getAll(self, ctx, search = "*", start = None, end = None, base = None):
         return []
 
 
