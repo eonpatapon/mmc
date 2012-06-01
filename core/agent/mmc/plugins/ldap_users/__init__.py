@@ -180,18 +180,34 @@ class LdapUsers(LdapConnection, UserI):
 
     def getAll(self, ctx, search = "*", start = None, end = None, base = None):
         """
-        Return the list of users below the base
+        Return the number and the list of users below the base
         """
         if not base: base = self._base
-        if not start: start = None
-        if not end: end = None
+        if not start: 
+            start = None
+        else:
+            start = int(start)
+        if not end: 
+            end = None
+        else:
+            end = int(end)
 
         filter = "(|(uid=%s)(givenName=%s)(sn=%s)(telephoneNumber=%s)(mail=%s))" % \
             (search, search, search, search, search)
 
         users = list(self.search(filter, base=base))
+        users.sort(self._sortByUid)
 
         return (len(users), users[start:end])
+
+    def _sortByUid(self, x, y):
+        """
+        Sort method by uid for users (used in getAll)
+        """
+        if str(x.uid).lower() >= str(y.uid).lower():
+            return 1
+        else:
+            return -1
 
     def addBase(self, ctx, name, base = None):
         """
@@ -498,8 +514,14 @@ class LdapGroups(LdapConnection, GroupI):
         Return the list of groups below the base
         """
         if not base: base = self._base
-        if not start: start = None
-        if not end: end = None
+        if not start:
+            start = None
+        else:
+            start = int(start)
+        if not end: 
+            end = None
+        else:
+            end = int(end)
 
         filter = "(|(cn=%s)(description=%s))" % (search, search)
         groups = list(self.search(filter, base=base))

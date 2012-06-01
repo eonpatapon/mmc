@@ -1872,11 +1872,10 @@ class TabbedPageGenerator extends PageGenerator {
     /**
      * add a header above the tab selector
      */
-    function addTop($title, $file) {
+    function addTop($title, $file = false) {
         $this->title = $title;
         $this->topfile = $file;
     }
-
 
     /**
      * Add a new tab to a page

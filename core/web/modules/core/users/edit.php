@@ -22,81 +22,29 @@
 
 require("localSidebar.php");
 require("graph/navbar.inc.php");
-require_once("includes/FormHandler.php");
 
 switch($_GET["action"]) {
     case "add":
-        $mode = "add";
         $title = _("Add user");
         $activeItem = "add";
+        $uid = '';
         break;
     case "edit":
-        $mode = "edit";
         $title = _("Edit user");
         $activeItem = "list";
         $uid = $_GET["user"];
-        $user = getUser($uid);
         break;
     default:
-        $mode = false;
-        break;
+        die();
 }
 
-$managerName = getUserManagerName();
-// Get user attributes
-require('modules/' . $managerName . '/includes/userForm.inc.php');
-
-$p = new PageGenerator($title);
+$p = new TabbedPageGenerator();
 $sidemenu->forceActiveItem($activeItem);
 $p->setSideMenu($sidemenu);
+$p->addTop($title);
+$p->addTab("general", _("General"), "", "modules/core/users/general.php", array('uid' => $uid));
+$p->addTab("acl", _("MMC ACLs"), "", "modules/core/users/acls.php", array('uid' => $uid));
 $p->display();
 
-$f = new ValidatingForm(array('method' => 'post',
-    'enctype' => 'multipart/form-data'));
-// add submit button
-$f->addValidateButton($mode);
-$f->addCancelButton("reset");
-
-$d = new DivForModule(_("User attributes"), "#F4F4F4");
-$d->push(new Table());
-
-foreach($attributes as $attr) {
-
-    if (is_array($attr['widget']))
-        $widget = $attr['widget'][$mode];
-    else
-        $widget = $attr['widget'];
-
-    if (isset($attr['value']))
-        $value = $attr['value'];
-    else if (isset($user[$attr['name']]))
-        $value = $user[$attr['name']];
-    else
-        $value = "";
-
-    if (isset($attr['container']) && is_object($attr['container'])) {
-        $container = $attr['container'];
-        $container->setDesc($attr['label']);
-        $container->setTemplate($widget);
-        $d->pop();
-        $d->add(
-            $container,
-            $value
-        );
-        $d->push(new Table());
-    }
-    else {
-        $d->add(
-            new TrFormElement($attr['label'], $widget),
-            array("value" => $value)
-        );
-    }
-
-}
-
-$d->pop();
-
-$f->push($d);
-$f->display();
 
 ?>
