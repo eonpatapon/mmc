@@ -109,7 +109,7 @@ def activate():
 def activate_2():
     config = PluginConfigFactory.new(LdapUsersConfig, "ldap_users")
     UserManager().register(config.backend_name, LdapUsers, LdapGroups)
-    UserManager().registerUserExtension(config.backend_name, "posix", LdapPosixUsers)
+    UserManager().registerUserExtension(config.backend_name, config.backend_name, "posix", LdapPosixUsers)
     UserManager().select(config.backend_name)
 
     AuthenticationManager().register("ldap", LdapUsersAuthenticator)
@@ -363,13 +363,21 @@ class LdapPosixUsers(LdapUsers, UserExtensionI):
              'gecos',
              'description']
 
+    def hasExtension(self, ctx, uid):
+        """
+        Return True is the user has POSIX attributes
+        """
+        user = self.getOne(ctx, uid)
+
+        return user.is_posixAccount
+
     def addProperties(self, ctx, uid, password, attrs = {}):
         """
         Add POSIX attributes to a user
         """
         user = self.getOne(ctx, uid)
 
-        if not 'posixAccount' in user.objectClass:
+        if not user.is_posixAccount:
             r = AF().log(PLUGIN_NAME, AA.USERS_ADD_USER_POSIX_ATTRS, [(uid, AT.USER)])
             # Check attributes
             if not 'homeDirectory' in attrs:
@@ -430,7 +438,7 @@ class LdapPosixUsers(LdapUsers, UserExtensionI):
         """
         user = self.getOne(ctx, uid)
 
-        if 'posixAccount' in user.objectClass:
+        if user.is_posixAccount:
             r = AF().log(PLUGIN_NAME, AA.USERS_DEL_USER_POSIX_ATTRS, [(uid, AT.USER)])
             user.objectClass.remove('posixAccount')
             for attr in self.attrs:
@@ -523,7 +531,7 @@ class LdapGroups(LdapConnection, GroupI):
         else:
             end = int(end)
 
-        filter = "(|(cn=%s)(description=%s))" % (search, search)
+        filter = "(|(objectClass=%s)(cn=%s)(description=%s))" % (search, search, search)
         groups = list(self.search(filter, base=base))
 
         return (len(groups), groups[start:end])

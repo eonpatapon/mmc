@@ -20,6 +20,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+
+require("modules/core/includes/userManager.inc.php");
+
+$UM =& UserManager::getInstance();
+
 global $conf;
 
 if(isset($_REQUEST['maxperpage']))
@@ -48,9 +53,8 @@ $users = $users[1];
 $arrUser = array();
 $arrExtra = array();
 
-$managerName = getUserManagerName();
 // Get attributes names
-require('modules/' . $managerName . '/includes/userList.inc.php');
+require('modules/' . $UM->name . '/includes/userList.inc.php');
 
 foreach($users as $user) {
     $arrUser[] = $user[$login['attr']];
@@ -80,11 +84,11 @@ foreach($arrExtra as $name => $values)
     $n->addExtraInfo($values, $name);
 
 if ($actions['edit'])
-    $n->addActionItem(new ActionItem(_("Edit"), "edit", "edit", "user"));
+    $n->addActionItem(new ActionItem(_("Edit"), "edit", "edit", "uid"));
 if ($actions['acl'])
-    $n->addActionItem(new ActionItem(_("MMC rights"), "editacl", "editacl", "user"));
+    $n->addActionItem(new ActionItem(_("MMC rights"), "editacl", "editacl", "uid"));
 if ($actions['delete'])
-    $n->addActionItem(new ActionPopupItem(_("Delete"), "delete", "delete", "user"));
+    $n->addActionItem(new ActionPopupItem(_("Delete"), "delete", "delete", "uid"));
 /*if (has_audit_working()) {
     $n->addActionItem(new ActionItem(_("Logged Actions"), "loguser", "audit", "user"));
 }*/

@@ -22,6 +22,9 @@
 
 require("localSidebar.php");
 require("graph/navbar.inc.php");
+require("modules/core/includes/userManager.inc.php");
+
+$UM = UserManager::getInstance();
 
 switch($_GET["action"]) {
     case "add":
@@ -32,7 +35,7 @@ switch($_GET["action"]) {
     case "edit":
         $title = _("Edit user");
         $activeItem = "list";
-        $uid = $_GET["user"];
+        $uid = $_GET["uid"];
         break;
     default:
         die();
@@ -42,7 +45,11 @@ $p = new TabbedPageGenerator();
 $sidemenu->forceActiveItem($activeItem);
 $p->setSideMenu($sidemenu);
 $p->addTop($title);
-$p->addTab("general", _("General"), "", "modules/core/users/general.php", array('uid' => $uid));
+foreach($UM->extensions as $extension) {
+    $name = $extension[0];
+    $plugin = $extension[1];
+    $p->addTab($name, $name, "", "modules/core/users/editTabForm.php", array('uid' => $uid));
+}
 $p->addTab("acl", _("MMC ACLs"), "", "modules/core/users/acls.php", array('uid' => $uid));
 $p->display();
 

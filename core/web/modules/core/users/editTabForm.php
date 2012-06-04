@@ -20,9 +20,13 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-$managerName = getUserManagerName();
-// Get user attributes
-require('modules/' . $managerName . '/includes/userForm.inc.php');
+$UM = UserManager::getInstance();
+$user = new User();
+
+if (!isset($_GET['tab']))
+    $extension = "general";
+else
+    $extension = $_GET['tab'];
 
 switch($_GET["action"]) {
     case "add":
@@ -34,13 +38,18 @@ switch($_GET["action"]) {
         $mode = "edit";
         $title = _("Edit user");
         $activeItem = "list";
-        $uid = $_GET["user"];
-        $user = getUser($uid);
+        $uid = $_GET["uid"];
+        $user->load(getUser($uid));
         break;
     default:
         $mode = false;
         break;
 }
+
+if (isset($_POST['edit']))
+    $user->loadForm($_POST);
+    if ($user->validate())
+        $user->save();
 
 $f = new ValidatingForm(array('method' => 'post',
     'enctype' => 'multipart/form-data'));
@@ -48,46 +57,28 @@ $f = new ValidatingForm(array('method' => 'post',
 $f->addValidateButton($mode);
 $f->addCancelButton("reset");
 
-$d = new DivForModule(_("General attributes"), "#F4F4F4");
-$d->push(new Table());
+$f->push(new Table());
 
-foreach($attributes as $attr) {
-
-    if (is_array($attr['widget']))
-        $widget = $attr['widget'][$mode];
-    else
-        $widget = $attr['widget'];
-
-    if (isset($attr['value']))
-        $value = $attr['value'];
-    else if (isset($user[$attr['name']]))
-        $value = $user[$attr['name']];
-    else
-        $value = "";
-
-    if (isset($attr['container']) && is_object($attr['container'])) {
-        $container = $attr['container'];
-        $container->setDesc($attr['label']);
-        $container->setTemplate($widget);
-        $d->pop();
-        $d->add(
-            $container,
-            $value
-        );
-        $d->push(new Table());
-    }
-    else {
-        $d->add(
-            new TrFormElement($attr['label'], $widget),
-            array("value" => $value)
-        );
-    }
-
+if ($extension != "general") {
+    $state = hasUserExtension($extension, $uid);
+    $f->add(
+        new TrFormElement(_("Enable"), new CheckboxTpl($extension.'ext')),
+        array("value" => $state ? "checked": "", "extraArg" => 'onclick="toggleVisibility(\''.$extension.'_div\');"')
+    );
+    $f->pop();
+    $d = new Div(array("id" => $extension.'_div'));
+    $d->setVisibility($state);
+    $f->push($d);
+    $f->push(new Table());
 }
 
-$d->pop();
+foreach($user->getProperties($extension) as $prop) {
+    $f = $prop->render($f, $mode);
+}
 
-$f->push($d);
+if ($extension != "general")
+    $f->pop();
+$f->pop();
 $f->display();
 
 ?>

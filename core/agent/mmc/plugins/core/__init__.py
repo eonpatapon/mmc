@@ -188,6 +188,10 @@ class RpcProxy(RpcProxyI):
 
     # User extensions
 
+    def hasUserExtension(self, name, user):
+        return xmlrpcCleanup(UserManager().hasUserExtension(self.currentContext,
+                                                            name, user))
+
     def addUserExtension(self, name, user, password, props = {}):
         return xmlrpcCleanup(UserManager().addUserExtension(self.currentContext,
                                                             name, user, 
@@ -202,6 +206,10 @@ class RpcProxy(RpcProxyI):
                                                     name, user))
 
     # Group extensions
+
+    def hasGroupExtension(self, name, user):
+        return xmlrpcCleanup(UserManager().hasGroupExtension(self.currentContext,
+                                                             name, user))
     
     def addGroupExtension(self, name, group, props = {}):
         return xmlrpcCleanup(UserManager().addGroupExtension(self.currentContext,

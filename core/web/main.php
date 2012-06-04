@@ -28,6 +28,8 @@ global $conf;
 
 ob_start();
 
+set_include_path(__DIR__ . ":" . get_include_path());
+
 require("includes/assert.inc.php");
 require("includes/session.inc.php");
 require("includes/config.inc.php");

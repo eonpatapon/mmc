@@ -212,7 +212,7 @@ class ImageTpl extends AbstractTpl {
         </tr>
         <tr>
             <td>&nbsp;</td>
-            <td><input name="photofilename" type="file" size="23" />';
+            <td><input name="'.$this->name.'" type="file" size="23" />';
         if ($arrParam["action"] == "edit")
             echo '<input name="deletephoto" type="submit" value="' . _("Delete photo") . '"/>';
     }
@@ -571,8 +571,7 @@ class MultipleInputTpl extends AbstractTpl {
     }
 
     function display($arrParam) {
-        print '<div id="'.$this->name.'">';
-        print '<table cellspacing="0">';
+        print '<div id="'.$this->name.'"><table cellspacing="0">';
         foreach ($arrParam as $key => $param) {
             $test = new DeletableTrFormElement($this->desc,
                                                new InputTpl($this->name.'['.$key.']',$this->regexp),
@@ -599,8 +598,7 @@ class MultipleInputTpl extends AbstractTpl {
         new Ajax.Updater(\''.$this->name.'\',\'includes/FormGenerator/MultipleInput.tpl.php\',
         { evalScripts: true, parameters: Form.serialize($(\'edit\'))+\'&amp;minputname='.$this->name.'&amp;desc='.urlencode($this->desc) . '&amp;regexp='.rawurlencode($this->regexp).'\' }); return false;"/>';
         print '</td></tr>';
-        print '</table>';
-        print '</div>';
+        print '</table></div>';
     }
 
     function displayRo($arrParam) {
@@ -890,7 +888,7 @@ class FormElement extends HtmlElement {
 
     function FormElement($desc = '', $tpl = NULL, $extraInfo = array()) {
         $this->desc = $desc;
-        $this->template = &$tpl;
+        $this->template = $tpl;
         foreach ($extraInfo as $key => $value) {
             $this->template->$key = $value;
         }
@@ -905,7 +903,7 @@ class FormElement extends HtmlElement {
     }
 
     function setTemplate($tpl) {
-        $this->template = &$tpl;
+        $this->template = $tpl;
     }
 
     /**
@@ -1059,9 +1057,9 @@ class TrFormElement extends FormElement {
     var $desc;
     var $cssErrorName;
 
-    function TrFormElement($desc, $tpl, $extraInfo = array()) {
-        $this->desc=$desc;
-        $this->template=&$tpl;
+    function TrFormElement($desc = "", $tpl = NULL, $extraInfo = array()) {
+        $this->desc = $desc;
+        $this->template = $tpl;
         $this->tooltip = False;
         $this->firstColWidth = "40%";
     	$this->style = null;	/* css style */
@@ -1080,11 +1078,11 @@ class TrFormElement extends FormElement {
         if (!isset($this->cssErrorName)) $this->cssErrorName = $this->template->name;
 
         printf('<tr');
-	if ($this->class !== null)
-	    printf(' class="%s"', $this->class);
-	if ($this->style !== null)
-	    printf(' style="%s"', $this->style);
-	printf('><td class="label" width="%s" ', $this->firstColWidth);
+	    if ($this->class !== null)
+	        printf(' class="%s"', $this->class);
+    	if ($this->style !== null)
+	        printf(' style="%s"', $this->style);
+    	printf('><td class="label" width="%s" ', $this->firstColWidth);
         print displayErrorCss($this->cssErrorName);
         print 'style = "text-align: right;">';
 

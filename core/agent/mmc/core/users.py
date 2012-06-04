@@ -127,6 +127,12 @@ class UserI:
 
 class UserExtensionI:
 
+    def hasExtension(self, ctx, user):
+        """
+        Return True if the user extension is enabled
+        """
+        pass
+
     def addProperties(self, ctx, user, password, props):
         """
         Add extension attributes on user user
@@ -217,6 +223,12 @@ class GroupI:
 
 class GroupExtensionI:
 
+    def hasExtension(self, ctx, user):
+        """
+        Return True if the group extension is enabled
+        """
+        pass
+
     def addProperties(self, ctx, group, props = {}):
         """
         Add extension attributes on group
@@ -235,6 +247,12 @@ class GroupExtensionI:
         """
         pass
 
+class UserGroupExtension(object):
+
+    def __init__(self, name, plugin_name, klass):
+        self.name = name
+        self.plugin_name = plugin_name
+        self.klass = klass
 
 class UserManager(Singleton):
 
@@ -258,26 +276,26 @@ class UserManager(Singleton):
         log.debug("Registering user manager '%s' / (%s, %s)" % (name, str(user_class), str(group_class)))
         if not name in self.components:
             self.components[name] = {}
-            self.components[name]['user_extensions'] = {}
-            self.components[name]['group_extensions'] = {}
+            self.components[name]['user_extensions'] = []
+            self.components[name]['group_extensions'] = []
         self.components[name]['user'] = user_class
         self.components[name]['group'] = group_class
 
-    def registerUserExtension(self, name, extension_name, user_extension_class):
+    def registerUserExtension(self, name, plugin_name, extension_name, user_extension_class):
         log.debug("Registering user extension '%s' for '%s' / %s" % (extension_name, name, str(user_extension_class)))
         if not name in self.components:
             self.components[name] = {}
-            self.components[name]['user_extensions'] = {}
-            self.components[name]['group_extensions'] = {}
-        self.components[name]['user_extensions'][extension_name] = user_extension_class
+            self.components[name]['user_extensions'] = []
+            self.components[name]['group_extensions'] = []
+        self.components[name]['user_extensions'].append(UserGroupExtension(extension_name, plugin_name, user_extension_class))
 
-    def registerGroupExtension(self, name, extension_name, group_extension_class):
+    def registerGroupExtension(self, name, plugin_name, extension_name, group_extension_class):
         log.debug("Registering group extension '%s' for '%s' / %s" % (extension_name, name, str(group_extension_class)))
         if not name in self.components:
             self.components[name] = {}
-            self.components[name]['user_extensions'] = {}
-            self.components[name]['group_extensions'] = {}
-        self.components[name]['group_extensions'][extension_name] = group_extension_class
+            self.components[name]['user_extensions'] = []
+            self.components[name]['group_extensions'] = []
+        self.components[name]['group_extensions'].append(UserGroupExtension(extension_name, plugin_name, group_extension_class))
 
     def validate(self):
         ret = (self.main == "none") or (self.main in self.components)
@@ -286,22 +304,32 @@ class UserManager(Singleton):
             log.error("Please check that the corresponding plugin was successfully enabled")
         return ret
 
-    def canUserHaveGroups(self):
+    def canHaveGroups(self):
         if self.components[self.main]['group']:
             return True
         return False
 
     def getUserExtensionsList(self):
         extensions = []
-        for extension in self.components[self.main]['user_extensions'].iteritems():
-            extensions.append(extension)
+        for extension in self.components[self.main]['user_extensions']:
+            extensions.append((extension.name, extension.plugin_name))
         return extensions
+
+    def getUserExtensionClass(self, name):
+        for extension in self.components[self.main]['user_extensions']:
+            if extension.name == name:
+                return extension.klass
 
     def getGroupExtensionsList(self):
         extensions = []
-        for extension in self.components[self.main]['group_extensions'].iteritems():
-            extensions.append(extension)
+        for extension in self.components[self.main]['group_extensions']:
+            extensions.append((extension.name, extension.plugin_name))
         return extensions
+
+    def getGroupExtensionClass(self, name):
+        for extension in self.components[self.main]['group_extensions']:
+            if extension.name == name:
+                return extension.klass
 
     # User
 
@@ -409,28 +437,36 @@ class UserManager(Singleton):
 
     # User extensions
 
+    def hasUserExtension(self, ctx, name, user):
+        klass = self.getUserExtensionClass(name)
+        return klass().hasExtension(ctx, user)
+
     def addUserExtension(self, ctx, name, user, password, props = {}):
-        klass = self.components[self.main]['user_extensions'][name]
+        klass = self.getUserExtensionClass(name)
         return klass().addProperties(ctx, user, password, props)
 
     def changeUserExtensionProps(self, ctx, name, user, props, log = True):
-        klass = self.components[self.main]['user_extensions'][name]
+        klass = self.getUserExtensionClass(name)
         return klass().changeProperties(ctx, user, props, log)
 
     def removeUserExtension(self, ctx, name, user):
-        klass = self.components[self.main]['user_extensions'][name]
+        klass = self.getUserExtensionClass(name)
         return klass().removeProperties(ctx, user)
 
     # Group extensions
 
+    def hasGroupExtension(self, ctx, name, user):
+        klass = self.getUserExtensionClass(name)
+        return klass().hasExtension(ctx, user)
+
     def addGroupExtension(self, ctx, name, group, props = {}):
-        klass = self.components[self.main]['group_extensions'][name]
+        klass = self.getGroupExtensionClass(name)
         return klass().addProperties(ctx, group, props)
 
     def changeGroupExtensionProps(self, ctx, name, group, props, log = True):
-        klass = self.components[self.main]['group_extensions'][name]
+        klass = self.getGroupExtensionClass(name)
         return klass().changeProperties(ctx, group, props, log)
 
     def removeGroupExtension(self, ctx, name, group):
-        klass = self.components[self.main]['group_extensions'][name]
+        klass = self.getGroupExtensionClass(name)
         return klass().removeProperties(ctx, group)

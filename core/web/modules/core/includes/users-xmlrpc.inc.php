@@ -25,6 +25,18 @@ function getUserManagerName() {
     return xmlCall("core.getUserManagerName");
 }
 
+function getUserExtensionsList() {
+    return xmlCall("core.getUserExtensionsList");
+}
+
+function canUserHaveGroups() {
+    return xmlCall("core.canUserHaveGroups");
+}
+
+function hasUserExtension($extension, $uid) {
+    return xmlCall("core.hasUserExtension", array($extension, $uid));
+}
+
 function getUsers($search = "*", $start = NULL, $end = NULL, $base = NULL) {
     return xmlCall("core.getUsers", array($search, $start, $end, $base));
 }
@@ -33,8 +45,16 @@ function getUser($uid) {
     return xmlCall("core.getUser", array($uid));
 }
 
+function getUserGroups($uid) {
+    return xmlCall("core.getUserGroups", array($uid));
+}
+
 function removeUser($uid) {
     return xmlCall("core.removeUser", array($uid));
+}
+
+function getGroups($search = "*", $start = NULL, $end = NULL, $base = NULL) {
+    return xmlCall("core.getGroups", array($search, $start, $end, $base));
 }
 
 ?>
