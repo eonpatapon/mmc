@@ -115,6 +115,14 @@ function autoInclude() {
         unset($submod);
         unset($action);
         unset($tab);
+
+    }
+
+    // Close the session to release the lock for ajax requests
+    // $_SESSION will be still available 
+    if(isset($_SERVER['HTTP_X_REQUESTED_WITH']) and
+       $_SERVER['HTTP_X_REQUESTED_WITH'] == "XMLHttpRequest") {
+           session_write_close();
     }
 
     /* Redirect user to a default page. */
