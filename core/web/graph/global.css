@@ -1427,7 +1427,7 @@ div.autocomplete ul li {
     color: #999;
 }
 
-.listinfos tbody tr:hover{
+.listinfos tbody tr:hover {
     background-color: #B8BCDB;
 }
 
@@ -1435,8 +1435,13 @@ div.autocomplete ul li {
     background-color: #EEE;
 }
 
-.listinfos thead:hover{
+.listinfos thead:hover {
     background-color: #EEE;
+}
+
+.listinfos td a.active {
+    font-weight: bold;
+    text-decoration: none;
 }
 
 form.inplaceeditor-form input[type="text"] {

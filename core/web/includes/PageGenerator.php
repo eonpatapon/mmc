@@ -315,7 +315,7 @@ class ListInfos extends HtmlElement {
      * constructor
      * @param $tab must be an array of array
      */
-    function ListInfos($tab, $description ="", $extranavbar = "") {
+    function ListInfos($tab, $description = "", $extranavbar = "", $orderByLabel = "") {
         $this->arrInfo=$tab;
         $this->arrAction=array();
         $this->description[] = $description;
@@ -324,6 +324,8 @@ class ListInfos extends HtmlElement {
         $this->col_width = array();
         $this->tooltip = array();
         $this->tooltip[] = "";
+        $this->orderByLabel = array();
+        $this->orderByLabel[] = $orderByLabel;
         $this->firstColumnActionLink = True;
         $this->_addInfo = array();
     }
@@ -368,12 +370,13 @@ class ListInfos extends HtmlElement {
      *  @param width Table column width
      *  @param tooltip Tooltip to display on the column name
      */
-    function addExtraInfo($arrString, $description= "", $width="", $tooltip = "") {
+    function addExtraInfo($arrString, $description = "", $width = "", $tooltip = "", $orderByLabel = "") {
         assert(is_array($arrString));
         $this->extraInfo[] = &$arrString;
         $this->description[] = $description;
         $this->col_width[] = $width;
         $this->tooltip[] = $tooltip;
+        $this->orderByLabel[] = $orderByLabel;
     }
 
     /**
@@ -526,35 +529,80 @@ class ListInfos extends HtmlElement {
     }
 
     function drawTable($navbar = 1) {
+        echo '<script type="text/javascript">
+            updateOrder = function(link, orderBy) {
+                if ($("orderBy").value == orderBy) {
+                    if ($("order").value == "asc")
+                        $("order").value = "desc";
+                    else
+                        $("order").value = "asc";
+                }
+                else {
+                    $("orderBy").value = orderBy;
+                    $("order").value = "desc";
+                }
+                pushSearch();
+            }
+        </script>';
         echo "<table border=\"1\" cellspacing=\"0\" cellpadding=\"5\" class=\"listinfos\">\n";
         echo "<thead><tr>";
-        $first = False;
+        $first = True;
         foreach ($this->description as $key => $desc) {
             if (isset($this->col_width[$key])) {
                 $width_styl = 'width: '.$this->col_width[$key].';';
             } else {
                 $width_styl = '';
             }
-            if (!$first) {
 
-                if (!isset($this->first_elt_padding)) {
-                    $this->first_elt_padding = 32;
-                }
-                echo "<td style=\"$width_styl\"><span style=\"color: #777; padding-left: ".$this->first_elt_padding."px;\">$desc</span></td>";
-                $first = True;
-
+            if ((isset($_GET['orderBy']) && $_GET['orderBy'] == $this->orderByLabel[$key]) ||
+                (isset($_GET['orderBy']) && !$_GET['orderBy'] && $first)) {
+                    $class = "active";
+                    echo '<script type="text/javascript">$("orderBy").value = "'.$this->orderByLabel[$key].'";</script>';
             } else {
-                /* Draw table header line */
-                /* Add a tooltip to the column name if there is one set */
-                if (!empty($this->tooltip[$key])) {
-                    $tooltipbegin = "<a href=\"#\" class=\"tooltip\">";
-                    $tooltipend = "<span>" . $this->tooltip[$key] . "</span></a>";
-                } else {
-                    $tooltipbegin = "";
-                    $tooltipend = "";
-                }
-                echo "<td style=\"$width_styl\"><span style=\"color: #777;\">$tooltipbegin$desc$tooltipend</span></td>";
+                $class = "";
             }
+
+            if ((isset($_GET['order']) && $_GET['order'] == "asc" && $class == "active")) {
+                $img = "img/common/icn_arrowup.png";
+                echo '<script type="text/javascript">$("order").value = "asc";</script>';
+            }
+            else if ($class == "active") {
+                $img = "img/common/icn_arrowdown.png";
+                echo '<script type="text/javascript">$("order").value = "desc";</script>';
+            }
+            else {
+                $img = "img/common/icn_arrowdown.png";
+            }
+
+            if ($first) {
+                if (isset($this->first_elt_padding))
+                    $padding = $this->first_elt_padding;
+                else
+                    $padding = 32;
+
+                $first = False;
+            } else {
+                $padding = 0;
+            }
+
+            /* Draw table header line */
+            /* Add a tooltip to the column name if there is one set */
+            if (!empty($this->tooltip[$key])) {
+                $tooltipbegin = "<a href=\"#\" class=\"tooltip\">";
+                $tooltipend = "<span>" . $this->tooltip[$key] . "</span></a>";
+            } else {
+                $tooltipbegin = "";
+                $tooltipend = "";
+            }
+
+            if ($this->orderByLabel[$key]) {
+                echo "<td style=\"$width_styl\"><span style=\"color: #777; padding-left: ".$padding."px;\">
+                        <a href=\"#\" class=\"$class\" onclick=\"updateOrder(this, '".$this->orderByLabel[$key]."'); return false;\">$tooltipbegin$desc$tooltipend</a>&nbsp;
+                        <img src=\"$img\" style=\"vertical-align: bottom\" />
+                      </span></td>";
+            }
+            else
+                echo "<td style=\"$width_styl\"><span style=\"color: #777; padding-left: ".$padding."px;\">$tooltipbegin$desc$tooltipend</span></td>";
         }
 
         if (count($this->arrAction)!=0) { //if we have actions
@@ -1180,6 +1228,8 @@ class AjaxFilter extends HtmlElement {
 ?>
 <form name="Form<?php echo $this->formid ?>" id="Form<?php echo $this->formid ?>" action="#" onsubmit="return false;">
 
+    <input type="hidden" name="orderBy" id="orderBy<?php echo $this->formid ?>" value="" />
+    <input type="hidden" name="order" id="order<?php echo $this->formid ?>" value="" />
     <div id="loader<?php echo $this->formid ?>">
         <img id="loadimg" src="<?php echo $root; ?>img/common/loader.gif" alt="loader" class="loader"/>
     </div>
@@ -1233,7 +1283,7 @@ if (isset($this->storedmax)) {
          * Update div
          */
         <?php
-        $url = $this->url."filter='+document.Form".$this->formid.".param.value+'&maxperpage='+maxperpage+'".$this->params;
+        $url = $this->url."filter='+document.Form".$this->formid.".param.value+'&maxperpage='+maxperpage+'&orderBy='+document.Form".$this->formid.".orderBy.value+'&order='+document.Form".$this->formid.".order.value+'".$this->params;
         if (isset($this->storedstart) && isset($this->storedend)) {
             $url .= "&start=".$this->storedstart."&end=".$this->storedend;
         }
@@ -1244,29 +1294,24 @@ if (isset($this->storedmax)) {
             '<?php echo $url ?>',
             { asynchronous:true, evalScripts: true}
             );
-
-<?
-if ($this->refresh) {
-?>
+<? if ($this->refresh) { ?>
             refreshtimer<?php echo $this->formid ?> = setTimeout("updateSearch<?php echo $this->formid ?>()", refreshdelay<?php echo $this->formid ?>)
-<?
-}
-?>
+<? } ?>
         }
 
         /**
          * Update div when clicking previous / next
          */
-        updateSearchParam<?php echo $this->formid ?> = function(filter, start, end, max) {
+        updateSearchParam<?php echo $this->formid ?> = function(filter, start, end, max, order) {
             clearTimers<?php echo $this->formid ?>();
             if(document.getElementById('maxperpage') != undefined)
                 maxperpage = document.getElementById('maxperpage').value;
 
-            new Ajax.Updater('<?php echo  $this->divid; ?>','<?php echo  $this->url; ?>filter='+filter+'&start='+start+'&end='+end+'&maxperpage='+maxperpage+'<?php echo  $this->params ?>', { asynchronous:true, evalScripts: true});
+            new Ajax.Updater('<?php echo  $this->divid; ?>','<?php echo  $this->url; ?>filter='+filter+'&start='+start+'&end='+end+'&maxperpage='+maxperpage+'&order='+order+'<?php echo  $this->params ?>', { asynchronous:true, evalScripts: true});
 <?
 if ($this->refresh) {
 ?>
-            refreshparamtimer<?php echo $this->formid ?> = setTimeout("updateSearchParam<?php echo $this->formid ?>('"+filter+"',"+start+","+end+","+maxperpage+")", refreshdelay<?php echo $this->formid ?>);
+            refreshparamtimer<?php echo $this->formid ?> = setTimeout("updateSearchParam<?php echo $this->formid ?>('"+filter+"',"+start+","+end+","+maxperpage+","+order+")", refreshdelay<?php echo $this->formid ?>);
 <?
 }
 ?>
