@@ -1,0 +1,3 @@
+[main]
+disable = 1
+journalctl_path = /bin/systemd-journalctl
