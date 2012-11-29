@@ -3,8 +3,6 @@
  * (c) 2004-2007 Linbox / Free&ALter Soft, http://linbox.com
  * (c) 2007-2008 Mandriva, http://www.mandriva.com/
  *
- * $Id$
- *
  * This file is part of Mandriva Management Console (MMC).
  *
  * MMC is free software; you can redistribute it and/or modify
@@ -26,75 +24,64 @@
  * Last Change: 11/20/2012
  * Description: This a page to render html elements and get user input, check the input and call action page or function
 */
-?>
-<?php
-/* $Id$ */
-require("modules/squid/includes/config.inc.php");//global includes
-require("modules/squid/includes/squid.inc.php"); //call squid-xmlrpc.inc.php (xml-rpc functions) 
-require("localSidebar.php");  
+
+require("modules/squid/includes/squid.inc.php"); //call squid-xmlrpc.inc.php (xml-rpc functions)
+require("localSidebar.php");
 require("graph/navbar.inc.php");
-
-//Get keywords and Domain list from /etc/squid/rules/group_internet/normal_blacklist.txt 
-$arrB = get_nonIndexBlackList();
-
-
-//New page with side menu, create and show
-$p = new PageGenerator();
-$p->setSideMenu($sidemenu);
-$p->displaySideMenu();
-$p->display();
-
-//Create a list of informations 
-$n = new ListInfos($arrB,"List of keywords and domains blocked");
-$n->setName(_T("List"));
-
-//Create Title and show
-$t = new TitleElement(_T("Internet Blacklist Management"), 2);
-$t->display();
-
-//Create Form to get informations
-$f = new ValidatingForm();
-
-//Create table inside Form
-$f->push(new Table());
-//Add element input in table
-$f->add(new TrFormElement("<strong>" . _T("Bad word or domain to block access:") . "</strong>" , new InputTpl("blacklistName" )), array("value" => ""));
-
-//Add Botton in Form and show
-$f->addButton("btnAdd", _T("Add"));
-$f->display();
-
-//Add action on list and show list
-$n->addActionItem(new ActionPopupItem(_("Delete"),"delete","delete","blacklist") );
-$n->setCssClass("squidBlacklist");
-$n->display();
-
-//Reder a button to reload squid service and put changes on
-$f2 = new Form();
-$f2->addButton("btnApply", _T("Apply"));
-$f2->display();
 
 //Check Add Botton
 if (isset($_POST["btnAdd"])) {
 	$blacklistName = $_POST["blacklistName"];
 	if ((preg_match("/^[\?,\*,\#,\&,\(,\),]/", $blacklistName))) {
-		$n1 = new NotifyWidget();
-		$n1->add(sprintf(_T("Invalid words %s insert names without special characters"), $blacklistName));
-		header("Location: " . urlStrRedirect("squid/normalgroup/blackmanager"));
-	} else  {
+		new NotifyWidgetFailure(_T("Special characters not allowed."));
+        header("Location: " . urlStrRedirect("squid/normalgroup/blackmanager"));
+        exit;
+	} else {
 		$arrB = get_blacklist();
 		addElementInBlackList($blacklistName, $arrB);
 		if (!isXMLRPCError()) {
 			header("Location: " . urlStrRedirect("squid/normalgroup/blackmanager"));
-		}
+            exit;
+        }
 	}
 }
-
 //Check Apply Botton
-if (isset($_POST["btnApply"])) {
-	header("Location: " . urlStrRedirect("squid/normalgroup/restart"));
+if (isset($_POST["btnApply"]))
+    include('restart.php');
 
-}
+//Get keywords and Domain list from /etc/squid/rules/group_internet/normal_blacklist.txt
+$arrB = get_nonIndexBlackList();
+
+//New page with side menu, create and show
+$p = new PageGenerator(_T("Internet Blacklist Management"));
+$p->setSideMenu($sidemenu);
+$p->display();
+
+//Create a list of informations
+$n = new ListInfos($arrB, _T("List of keywords and domains blocked"));
+$n->first_elt_padding = 1;
+$n->disableFirstColumnActionLink();
+$n->setName(_T("List"));
+//Add action on list and show list
+$n->addActionItem(new ActionPopupItem(_("Delete"),"delete","delete","blacklist") );
+$n->display();
+
+//Create Title and show
+$t = new TitleElement(_T("Add bad word or domain"), 2);
+$t->display();
+
+//Create Form to get informations
+$f = new ValidatingForm();
+//Create table inside Form
+$f->push(new Table());
+//Add element input in table
+$f->add(new TrFormElement(_T("Bad word or domain to block access"), new InputTpl("blacklistName")),
+        array("value" => ""));
+//Add Botton in Form and show
+$f->pop();
+$f->addButton("btnAdd", _T("Add"));
+$f->addButton("btnApply", _T("Apply configuration"));
+$f->display();
+
+
 ?>
-
-

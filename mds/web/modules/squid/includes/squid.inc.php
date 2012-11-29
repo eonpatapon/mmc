@@ -23,7 +23,6 @@
  */
 ?>
 <?php
-/* $Id$ */
 
 /**
  * include the correct primitive file

@@ -3,8 +3,6 @@
  * (c) 2004-2007 Linbox / Free&ALter Soft, http://linbox.com
  * (c) 2007-2008 Mandriva, http://www.mandriva.com/
  *
- * $Id$
- *
  * This file is part of Mandriva Management Console (MMC).
  *
  * MMC is free software; you can redistribute it and/or modify
@@ -22,64 +20,61 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 ?>
-<?php 
-
+<?php
 
 function get_blacklist()
 {
-	return xmlCall("squid.getNormalBlacklist",null);
+    return xmlCall("squid.getNormalBlacklist",null);
 }
 
 function get_whitelist()
 {
-	return xmlCall("squid.getNormalWhitelist",null);
+    return xmlCall("squid.getNormalWhitelist",null);
 }
 
 function get_extlist()
 {
-	return xmlCall("squid.getNormalExtlist",null);
+    return xmlCall("squid.getNormalExtlist",null);
 }
 
 function get_timelist()
 {
-        return xmlCall("squid.getNormalTimelist",null);
+    return xmlCall("squid.getNormalTimelist",null);
 }
 
 function get_machlist()
 {
-	return xmlCall("squid.getNormalMachlist",null);
+    return xmlCall("squid.getNormalMachlist",null);
 }
 
-
-
 function get_nonIndexBlackList() {
-	$arrB =get_blacklist();
-	sort($arrB);
-	return $arrB;
+    $arrB =get_blacklist();
+    sort($arrB);
+    return $arrB;
 }
 
 function get_nonIndexWhiteList() {
-	$arrW =get_whitelist();
-	sort($arrW);
-        return $arrW;
+    $arrW =get_whitelist();
+    sort($arrW);
+    return $arrW;
 }
 
 function get_nonIndexExtList() {
-	$arrX =get_extlist();
-        sort($arrX);
-        return $arrX;
+    $arrX =get_extlist();
+    sort($arrX);
+    return $arrX;
 }
 
 function get_nonIndexTimeList() {
-        $arrT =get_timelist();
-        sort($arrT);
-        return $arrT;
+    $arrT =get_timelist();
+    sort($arrT);
+    return $arrT;
 }
 
 function get_nonIndexMachList() {
-	$arrM =get_Machlist();
-        sort($arrM);
-        return $arrM;
+    $arrM =get_Machlist();
+    sort($arrM);
+    return $arrM;
 }
 
 ///////////////ADD/////////////////////////////////
@@ -96,7 +91,7 @@ function addElementInExtList($element,&$arrExtList) {
     xmlCall("squid.addNormalExtlist",$element);
 }
 
-function addElementInTimeList($element,&$arrTimeList) {	
+function addElementInTimeList($element,&$arrTimeList) {
     xmlCall("squid.addNormalTimelist",$element);
 }
 
@@ -119,7 +114,7 @@ function delElementInExtList($element,&$arrExtList) {
     xmlCall("squid.delNormalExtlist",$element);
 }
 
-function delElementInTimeList($element,&$arrTimeList) {	
+function delElementInTimeList($element,&$arrTimeList) {
     xmlCall("squid.delNormalTimelist",$element);
 }
 
@@ -130,12 +125,8 @@ function delElementInMachList($element,&$arrMachList) {
 
 //////// ACTIONS ///////////////
 
-function getStatutProxy() {
-    return xmlCall("squid.getStatutProxy",null);
-}
-
 function reloadService(){
-    return xmlCall("squid.restartSquid",null);	
+    return xmlCall("squid.reloadSquid",null);
 }
 
 function startService(){
@@ -146,6 +137,10 @@ function stopService(){
     return xmlCall("squid.stopSquid",null);
 }
 
+function getStatutProxy() {
+    return xmlCall("squid.getStatutProxy",null);
+}
+
 function genSarg(){
     return xmlCall("squid.genSarg",null);
 }
@@ -153,8 +148,5 @@ function genSarg(){
 function cleanSarg(){
     return xmlCall("squid.cleanSarg",null);
 }
-
-
-
 
 ?>

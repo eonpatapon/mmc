@@ -3,8 +3,6 @@
  * (c) 2004-2007 Linbox / Free&ALter Soft, http://linbox.com
  * (c) 2007-2008 Mandriva, http://www.mandriva.com/
  *
- * $Id$
- *
  * This file is part of Mandriva Management Console (MMC).
  *
  * MMC is free software; you can redistribute it and/or modify
@@ -23,24 +21,14 @@
  */
 ?>
 <?php
-/* $Id$ */
 
-require("modules/squid/includes/config.inc.php");//global includes
-//require("modules/squid/includes/squid.inc.php"); //call squid-xmlrpc.inc.php (xml-rpc functions) 
-//require("localSidebar.php");
-//require("graph/navbar.inc.php");
+reloadService();
+if (!isXMLRPCError())
+    new NotifyWidgetSuccess(_T("Squid service was reloaded."));
+else
+    new NotifyWidgetFailure(_T("Failed to reload the Squid service."));
 
-//New page with side menu, create and show
-
-$p = new PageGenerator();
-$p->setSideMenu($sidemenu);
-$p->displaySideMenu();
-$p->display();
-
-
+header("Location: " . urlStrRedirect("squid/normalgroup/" . $_GET['action']));
+exit;
 
 ?>
-
-
-
-

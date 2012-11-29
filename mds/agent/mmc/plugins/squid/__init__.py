@@ -3,8 +3,6 @@
 # (c) 2004-2007 Linbox / Free&ALter Soft, http://linbox.com
 # (c) 2007-2010 Mandriva, http://www.mandriva.com
 #
-# $Id$
-#
 # This file is part of Mandriva Management Console (MMC).
 #
 # MMC is free software; you can redistribute it and/or modify
@@ -26,18 +24,16 @@ MDS squid plugin for the MMC agent.
 
 import os
 import logging
-from mmc.core.version import scmRevision
-from mmc.support import mmctools
-from mmc.support.config import PluginConfig, ConfigException
+import ldap
 from ConfigParser import NoSectionError, NoOptionError
+
+from mmc.core.version import scmRevision
 from mmc.core.audit import AuditFactory as AF
+from mmc.support.config import PluginConfig, ConfigException
 from mmc.plugins.squid.audit import AT, AA, PLUGIN_NAME
-try:
-    from mmc.plugins.services.manager import ServiceManager
-except ImportError:
-    pass
+from mmc.plugins.base import createGroup, changeGroupDescription
 
-
+logger = logging.getLogger()
 
 VERSION = "0.0.1"
 APIVERSION = "1:1:0"
@@ -54,28 +50,21 @@ def activate():
      @rtype: boolean
     """
     config = ProxyConfig("squid")
-    logger = logging.getLogger()
-    if config.disabled: 
-        msg = "disabled by configuration"        
-        logger.warning("Plugin squid: " + msg + ".")
+    if config.disabled:
+        logger.warning("Plugin squid: disabled by configuration.")
         return False
-    result = True
-    msg = ""
-    try:
-        config.check()
-    except ConfigException, ce:
-        msg = str(ce)
-        result = False
-    except Exception, e:
-        msg = str(e)
-        result = False
-    if not result:
-        logger.warning("Plugin squid: " + msg + ".")
-    return result
+
+    #try:
+    config.check()
+    #except Exception, e:
+        #logger.error("Squid configuration error: %s" % str(e))
+        #return False
+
+    return True
 
 
-def restartSquid():
-    return ManageList().restartSquid()
+def reloadSquid():
+    return ManageList().reloadSquid()
 
 def stopSquid():
     return ManageList().stopSquid()
@@ -89,12 +78,9 @@ def genSarg():
 def cleanSarg():
     return ManageList().cleanSarg()
 
-
-
 def getStatutProxy():
     return ManageList().getStatutProxy()
 
-"""to normal group"""
 def getNormalBlacklist():
     return ManageList().getNormalBlacklist()
 
@@ -123,7 +109,7 @@ def delNormalExtlist(elt):
     return ManageList().delNormalBlackExt(elt)
 
 def getNormalTimelist():
-    return ManageList().getTimeDaylist() 
+    return ManageList().getTimeDaylist()
 
 def addNormalTimelist(elt):
     return ManageList().addNormalTimelist(elt)
@@ -141,59 +127,87 @@ def addNormalMachlist(elt):
 def delNormalMachlist(elt):
     return ManageList().delNormalMachlist(elt)
 
-    
+
 class ProxyConfig(PluginConfig):
 
     def readConf(self):
-        
+
         PluginConfig.readConf(self)
-        
-        try: self.squidBinary = self.get("squid","squidBinary")
-        except (NoSectionError, NoOptionError): pass
-        
+
+        try: self.squidBinary = self.get("squid", "squidBinary")
+        except (NoSectionError, NoOptionError): self.squidBinary = "/usr/sbin/squid"
+
+        try: self.squidRules = self.get("squid", "squidRules")
+        except (NoSectionError, NoOptionError): self.squidRules = "/etc/rules"
+
         try: self.squidMasterGroup = self.get("squid", "squidMasterGroup")
-        except (NoSectionError, NoOptionError): pass
-        
-	try: self.squidRules = self.get("squid", "squidRules")
-        except (NoSectionError, NoOptionError): pass
-        
-        try: self.squidReload = self.get("squid", "squidReload")
-        except (NoSectionError, NoOptionError): pass
-        
-	try: self.normalBlackList = self.get("squid","normalBlackList")
-	except (NoSectionError, NoOptionError): pass
+        except (NoSectionError, NoOptionError): self.squidMasterGroup = "/etc/rules/group_internet"
 
-	try: self.normalWhiteList = self.get("squid","normalWhiteList")
-        except (NoSectionError, NoOptionError): pass
-	
-	try: self.normalBlackExt = self.get("squid","normalBlackExt")
-        except (NoSectionError, NoOptionError): pass
-	
-	try: self.timeDay = self.get("squid","timeDay")
-        except (NoSectionError, NoOptionError): pass
+        try: self.normalBlackList = self.get("squid", "normalBlackList")
+        except (NoSectionError, NoOptionError): self.normalBlackList = "/etc/rules/group_internet/normal_blacklist.txt"
 
-	try: self.normalMachList = self.get("squid","normalMachList")
-        except (NoSectionError, NoOptionError): pass
+        try: self.normalWhiteList = self.get("squid", "normalWhiteList")
+        except (NoSectionError, NoOptionError): self.normalWhiteList = "/etc/rules/group_internet/normal_whitelist.txt"
 
-	try: self.sargBinary = self.get("squid","sargBinary")
-	except (NoSectionError, NoOptionError): pass
+        try: self.normalBlackExt = self.get("squid", "normalBlackExt")
+        except (NoSectionError, NoOptionError): self.normalBlackExt = "/etc/rules/group_internet/normal_blacklist_ext.txt"
 
+        try: self.timeDay = self.get("squid", "timeDay")
+        except (NoSectionError, NoOptionError): self.timeDay = "/etc/rules/group_internet/time_day.txt"
 
-    def setDefault(self):
-        
-	PluginConfig.setDefault(self)
-	
+        try: self.normalMachList = self.get("squid", "normalMachList")
+        except (NoSectionError, NoOptionError): self.normalMachList = "/etc/rules/group_internet/allow_machines.txt"
+
+        try: self.sargBinary = self.get("squid", "sargBinary")
+        except (NoSectionError, NoOptionError): self.sargBinary = "/usr/bin/sarg"
+
+        try: self.squidInit = self.get("squid", "squidInit")
+        except (NoSectionError, NoOptionError): self.squidInit = "/etc/init.d/squid"
+
+        try: self.squidPid = self.get("squid", "squidPid")
+        except (NoSectionError, NoOptionError): self.squidPid = "/var/run/squid.pid"
+
+        try: self.groupMaster = self.get("squid", "groupMaster")
+        except (NoSectionError, NoOptionError): self.groupMaster = "Internet Master"
+        self.groupMasterDesc = "Free access to Internet and downloads"
+
+        try: self.groupFiltered = self.get("squid", "groupFiltered")
+        except (NoSectionError, NoOptionError): self.groupFiltered = "Internet Filtered"
+        self.groupFilteredDesc = "Filtered access to Internet and downloads"
+
+        try: self.groupTime = self.get("squid", "groupTime")
+        except (NoSectionError, NoOptionError): self.groupTime = "Internet Time"
+        self.groupTimeDesc = "Access to Internet in specific hours"
 
     def check(self):
         if not os.path.exists(self.squidBinary):
             raise ConfigException("Can't find squid binary: %s" % self.squidBinary)
-        
-        if not os.path.exists(self.squidRules):
-            raise ConfigException("Can't find squid rules : %s" % self.squidRules)
-        
-        if not os.path.exists(self.squidMasterGroup):
-            raise ConfigException("Can't find squid Internet Group : %s" % self.squidMasterGroup)
-        
+
+        if not os.path.exists(self.sargBinary):
+            raise ConfigException("Can't find sarg binary: %s" % self.sargBinary)
+
+        for dir in (self.squidRules, self.squidMasterGroup):
+            if not os.path.exists(dir):
+                logger.info("Creating %s" % dir)
+                os.makedirs(dir)
+
+        for list in (self.normalBlackList, self.normalWhiteList, self.normalBlackExt,
+                     self.timeDay, self.normalMachList):
+            if not os.path.exists(list):
+                logger.info("Creating %s" % list)
+                open(list, "w+").close()
+
+        for group, desc in ((self.groupMaster, self.groupMasterDesc),
+                            (self.groupFiltered, self.groupFilteredDesc),
+                            (self.groupTime, self.groupTimeDesc)):
+            try:
+                createGroup(group)
+                changeGroupDescription(group, desc)
+                logger.info("Group %s created." % group)
+            except ldap.ALREADY_EXISTS:
+                pass
+
+
 
 ####################################################################
 #           Class to persist and manipulate squid files
@@ -201,22 +215,22 @@ class ProxyConfig(PluginConfig):
 
 class ManageList:
 
-
     def __init__(self):
         """
         For easier modification Arrays are always loaded
-        
+
         """
         self.config = ProxyConfig("squid")
         self.normalBlackList = self.config.normalBlackList
         self.normalWhiteList = self.config.normalWhiteList
         self.normalMachList = self.config.normalMachList
-	self.normalBlackExt = self.config.normalBlackExt
-	self.normal = self.config.normalBlackExt
+        self.normalBlackExt = self.config.normalBlackExt
+        self.normal = self.config.normalBlackExt
         self.squid = self.config.squidBinary
-	self.timeDay = self.config.timeDay
-	self.squidReload = self.config.squidReload
-	self.sargBinary = self.config.sargBinary
+        self.timeDay = self.config.timeDay
+        self.squidInit = self.config.squidInit
+        self.squidPid = self.config.squidPid
+        self.sargBinary = self.config.sargBinary
 
         """Array to manipulate Nomal Black List"""
         self.contentArrNBL = []
@@ -226,7 +240,7 @@ class ManageList:
             if line and line not in self.contentArrNBL:
                 self.contentArrNBL.append(line)
         f.close()
-            
+
         """Array to manipulate Nomal White List"""
         self.contentArrNWL = []
         f = open(self.normalWhiteList)
@@ -235,7 +249,7 @@ class ManageList:
             if line and line not in self.contentArrNWL:
                 self.contentArrNWL.append(line)
         f.close()
-            
+
         """Array to manipulate Nomal Black Extensions"""
         self.contentArrNBX = []
         f = open(self.normalBlackExt)
@@ -244,7 +258,7 @@ class ManageList:
             if line and line not in self.contentArrNBX:
                 self.contentArrNBX.append(line)
         f.close()
-            
+
         """Array to manipulate Time day hour"""
         self.contentArrTDL = []
         f = open(self.timeDay)
@@ -253,26 +267,29 @@ class ManageList:
             if line and line not in self.contentArrTDL:
                 self.contentArrTDL.append(line)
         f.close()
-        
-	"""Array to manipulate Time day hour"""
-	self.contentArrML = []
-	f = open(self.normalMachList)
-	for line in f:
-	    line = line.strip()
-	    if line and line not in self.contentArrML:
-	       self.contentArrML.append(line)
-	f.close()
 
+        """Array to manipulate Time day hour"""
+        self.contentArrML = []
+        f = open(self.normalMachList)
+        for line in f:
+            line = line.strip()
+            if line and line not in self.contentArrML:
+               self.contentArrML.append(line)
+        f.close()
 
-    def restartSquid(self):
- 	ServiceManager().reload("squid")
-   
+    def reloadSquid(self):
+        try:
+            from mmc.plugins.services.manager import ServiceManager
+            ServiceManager().reload("squid")
+        except ImportError:
+            from mmc.support.mmctools import ServiceManager
+            SM = ServiceManager(self.squidInit, self.squidPid)
+            SM.reload()
 
     def getStatutProxy(self):
-        
         res={}
         res['squid']=0
-        
+
         psout = os.popen('ps ax | grep squid | grep -v grep','r')
         try:
             tmp=psout.read()
@@ -285,20 +302,22 @@ class ManageList:
         return res
 
     def getNormalBlacklist(self):
-        ret = self.contentArrNBL[:]
-        return ret
+        return self.contentArrNBL
 
     def getNormalWhitelist(self):
-        ret = self.contentArrNWL[:]
-        return ret
-    
+        return self.contentArrNWL
+
     def getNormalExtlist(self):
-        ret = self.contentArrNBX[:]
-        return ret
+        return self.contentArrNBX
 
     def getNormalTimelist(self):
-	ret = self.contentArrNT[:]
-	return ret
+        return self.contentArrNT
+
+    def getNormalMachlist(self):
+        return self.contentArrML
+
+    def getTimeDaylist(self):
+        return self.contentArrTDL
 
     def saveNormalBlacklist(self):
         f = open(self.config.normalBlackList, 'w')
@@ -320,14 +339,14 @@ class ManageList:
             f.write(elt + '\n')
         f.close()
         return 0
-    
+
     def addNormalBlacklist(self, elt):
         r = AF().log(PLUGIN_NAME, AA.PROXY_ADD_NORMAL_BLACKLIST, [(elt, AT.AUDITLIST)])
         if not elt in self.contentArrNBL:
             self.contentArrNBL.append(elt)
         self.saveNormalBlacklist()
         r.commit()
-    
+
     def delNormalBlacklist(self, elt):
         r = AF().log(PLUGIN_NAME, AA.PROXY_DEL_NORMAL_BLACKLIST, [(elt, AT.AUDITLIST)])
         if elt in self.contentArrNBL:
@@ -341,21 +360,21 @@ class ManageList:
             self.contentArrNWL.append(elt)
         self.saveNormalWhitelist()
         r.commit()
-    
+
     def delNormalWhitelist(self, elt):
         r = AF().log(PLUGIN_NAME, AA.PROXY_DEL_NORMAL_WHITELIST, [(elt, AT.AUDITLIST)])
         if elt in self.contentArrNWL:
             self.contentArrNWL.remove(elt)
         self.saveNormalWhitelist()
         r.commit()
-        
+
     def addNormalBlackExt(self, elt):
         r = AF().log(PLUGIN_NAME, AA.PROXY_ADD_NORMAL_BLACKEXT, [(elt, AT.AUDITLIST)])
         if not elt in self.contentArrNBX:
             self.contentArrNBX.append(elt)
         self.saveNormalBlackExt()
         r.commit()
-    
+
     def delNormalBlackExt(self, elt):
         r = AF().log(PLUGIN_NAME, AA.PROXY_DEL_NORMAL_BLACKEXT, [(elt, AT.AUDITLIST)])
         if elt in self.contentArrNBX:
@@ -363,10 +382,6 @@ class ManageList:
         self.saveNormalBlackExt()
         r.commit()
 
-    def getTimeDaylist(self):
-        ret = self.contentArrTDL[:]
-        return ret
-    
     def saveTimeDaylist(self):
         f = open(self.config.timeDay, 'w')
         for elt in self.contentArrTDL:
@@ -381,7 +396,7 @@ class ManageList:
             self.contentArrTDL.append(elt)
         self.saveTimeDaylist()
         r.commit()
-    
+
     def delTimeDay(self, elt):
         """Remove an element from the blacklist"""
         r = AF().log(PLUGIN_NAME, AA.PROXY_DEL_TIME_DAY, [(elt, AT.AUDITLIST)])
@@ -389,11 +404,7 @@ class ManageList:
             self.contentArrTDL.remove(elt)
         self.saveTimeDaylist()
         r.commit()
-        
-    def getNormalMachlist(self):
-	ret = self.contentArrML[:]
-	return ret
-    
+
     def saveNormalMachlist(self):
         f = open(self.config.normalMachList, 'w')
         for elt in self.contentArrML:
@@ -404,9 +415,9 @@ class ManageList:
     def addNormalMachlist(self, elt):
         r = AF().log(PLUGIN_NAME, AA.PROXY_ADD_TIME_DAY, [(elt, AT.AUDITLIST)])
         if not elt in self.contentArrML:
-	        self.contentArrML.append(elt)
-	self.saveNormalMachlist()
-	r.commit()
+            self.contentArrML.append(elt)
+        self.saveNormalMachlist()
+        r.commit()
 
     def delNormalMachlist(self, elt):
         r = AF().log(PLUGIN_NAME, AA.PROXY_ADD_TIME_DAY, [(elt, AT.AUDITLIST)])
@@ -414,4 +425,3 @@ class ManageList:
            self.contentArrML.remove(elt)
         self.saveNormalMachlist()
         r.commit()
-

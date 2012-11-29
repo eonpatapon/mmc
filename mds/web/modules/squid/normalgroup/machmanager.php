@@ -3,8 +3,6 @@
  * (c) 2004-2007 Linbox / Free&ALter Soft, http://linbox.com
  * (c) 2007-2008 Mandriva, http://www.mandriva.com/
  *
- * $Id$
- *
  * This file is part of Mandriva Management Console (MMC).
  *
  * MMC is free software; you can redistribute it and/or modify
@@ -28,13 +26,12 @@
 */
 ?>
 <?php
-/* $Id$ */
 require("modules/squid/includes/config.inc.php");//global includes
-require("modules/squid/includes/squid.inc.php"); //call squid-xmlrpc.inc.php (xml-rpc functions) 
-require("localSidebar.php");  
+require("modules/squid/includes/squid.inc.php"); //call squid-xmlrpc.inc.php (xml-rpc functions)
+require("localSidebar.php");
 require("graph/navbar.inc.php");
 
-//Get keywords and Domain list from /etc/squid/rules/group_internet/normal_whitelist.txt 
+//Get keywords and Domain list from /etc/squid/rules/group_internet/normal_whitelist.txt
 $arrB = get_nonIndexMachList();
 
 
@@ -44,7 +41,7 @@ $p->setSideMenu($sidemenu);
 $p->displaySideMenu();
 $p->display();
 
-//Create a list of informations 
+//Create a list of informations
 $n = new ListInfos($arrB,"List of IP address allowed");
 $n->setName(_T("List"));
 
@@ -56,9 +53,9 @@ $t->display();
 $f = new ValidatingForm();
 
 //Create table inside Form
-$f->push(new Table()); 
+$f->push(new Table());
 
-// Add new element input type 
+// Add new element input type
 $f->add(new TrFormElement("<strong>" . _T("Enter IP Address to allow free access to Internet:") . "</strong>", new InputTpl("ipaddress" )), array("value" => ""));
 
 //Add Botton in Form
@@ -98,5 +95,3 @@ if (isset($_POST["btnApply"])) {
 
 }
 ?>
-
-

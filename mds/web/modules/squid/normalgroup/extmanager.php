@@ -3,8 +3,6 @@
  * (c) 2004-2007 Linbox / Free&ALter Soft, http://linbox.com
  * (c) 2007-2008 Mandriva, http://www.mandriva.com/
  *
- * $Id$
- *
  * This file is part of Mandriva Management Console (MMC).
  *
  * MMC is free software; you can redistribute it and/or modify
@@ -28,10 +26,9 @@
 */
 ?>
 <?php
-/* $Id$ */
 require("modules/squid/includes/config.inc.php");//global includes
-require("modules/squid/includes/squid.inc.php"); //call squid-xmlrpc.inc.php (xml-rpc functions) 
-require("localSidebar.php");  
+require("modules/squid/includes/squid.inc.php"); //call squid-xmlrpc.inc.php (xml-rpc functions)
+require("localSidebar.php");
 require("graph/navbar.inc.php");
 
 //Get list of the extension blocked from /etc/squid/rules/group_internet/normal_blacklist_ext.txt
@@ -44,7 +41,7 @@ $p->setSideMenu($sidemenu);
 $p->displaySideMenu();
 $p->display();
 
-//Create a list of informations 
+//Create a list of informations
 $n = new ListInfos($arrB,"List of extensions blocked");
 $n->setName(_T("List"));
 $n->setCssClass("squidExtlist");
@@ -57,9 +54,9 @@ $t->display();
 $f = new ValidatingForm();
 
 //Create table inside Form
-$f->push(new Table()); 
+$f->push(new Table());
 
-// Add new element input type 
+// Add new element input type
 $f->add(new TrFormElement("<strong>" . _T("Extension to be blocked:") . "</strong>" , new InputTpl("extlistName" )), array("value" => ""));
 
 //Add Botton in Form

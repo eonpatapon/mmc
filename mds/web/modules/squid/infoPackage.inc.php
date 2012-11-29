@@ -36,10 +36,9 @@ $mod->setAPIVersion('1:1:0');
  */
 $submod = new SubModule("normalgroup");
 $submod->setDescription(_T("Proxy","squid"));
-$submod->setImg('img/navbar/squid');
+$submod->setImg('modules/squid/graph/navbar/proxy');
 $submod->setDefaultPage("squid/normalgroup/blackmanager");
 $submod->setPriority(300);
-
 
 $page = new Page("blackmanager",_T("Internet Blacklist","squid"));
 $submod->addPage($page);
@@ -81,7 +80,6 @@ $page = new Page("repmanager",_T("Report Manager","squid"));
 $page->setOptions( array ("noHeader" => True,"visible"=>False));
 $submod->addPage($page);
 
-
 $page = new Page("machmanager",_T("Allow Machines","squid"));
 $submod->addPage($page);
 
@@ -92,10 +90,9 @@ $page = new Page("restart",_T("Apply Changes","squid"));
 $page->setOptions( array ("noHeader" => True,"visible"=>True));
 $submod->addPage($page);
 
-
 $mod->addSubmod($submod);
 
 $MMCApp =&MMCApp::getInstance();
-$MMCApp->addModule(&$mod);
+$MMCApp->addModule($mod);
 
 ?>
