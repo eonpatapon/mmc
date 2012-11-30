@@ -1,0 +1,33 @@
+graph/normalgroup/add.css
+includes/auditCodes.php
+includes/proxy-unix.inc.php
+includes/proxy.inc.php
+includes/config.inc.php
+includes/proxy-xmlrpc.inc.php
+infoPackage.inc.php
+localCss.php
+Arquivo binário locale/es_ES/LC_MESSAGES/proxy.mo coincide com o padrão
+Arquivo binário locale/pt_BR/LC_MESSAGES/proxy.mo coincide com o padrão
+Arquivo binário locale/ru_RU/LC_MESSAGES/proxy.mo coincide com o padrão
+Arquivo binário locale/pl_PL/LC_MESSAGES/proxy.mo coincide com o padrão
+Arquivo binário locale/de_DE/LC_MESSAGES/proxy.mo coincide com o padrão
+Arquivo binário locale/fr_FR/LC_MESSAGES/proxy.mo coincide com o padrão
+Arquivo binário locale/nb_NO/LC_MESSAGES/proxy.mo coincide com o padrão
+normalgroup/servicemanager.php
+normalgroup/status.php
+normalgroup/localSidebar.php
+normalgroup/accesslog/index.php
+normalgroup/accesslog/includes/squidnow.js
+normalgroup/accesslog.php
+normalgroup/restart.php
+normalgroup/whitemanager.php
+normalgroup/machmanager.php
+normalgroup/timemanager.php
+normalgroup/deletet.php
+normalgroup/deletew.php
+normalgroup/extmanager.php
+normalgroup/deletex.php
+normalgroup/delete.php
+normalgroup/repmanager.php
+normalgroup/deletem.php
+normalgroup/blackmanager.php
